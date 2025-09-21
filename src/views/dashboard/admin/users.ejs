@@ -1,0 +1,412 @@
+<!-- User Management View -->
+<div class="max-w-7xl mx-auto">
+  <div class="bg-white shadow rounded-lg p-6">
+    <!-- Header with Search and Filters -->
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 space-y-4 md:space-y-0">
+      <h2 class="text-2xl font-bold text-gray-800">User Management</h2>
+      
+      <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full md:w-auto">
+        <div class="relative">
+          <input type="text" 
+                 id="searchInput"
+                 placeholder="Search users..."
+                 class="w-full md:w-64 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+        </div>
+
+        <select id="roleFilter" 
+                class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+          <option value="">All Roles</option>
+          <option value="customer">Customers</option>
+          <option value="shopkeeper">Shopkeepers</option>
+          <option value="admin">Admins</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="usersTableBody" class="bg-white divide-y divide-gray-200">
+          <!-- Users will be dynamically inserted here -->
+        </tbody>
+      </table>
+
+      <!-- Loading State -->
+      <div id="loadingState" class="hidden">
+        <div class="text-center py-4">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p class="mt-2 text-sm text-gray-500">Loading users...</p>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="hidden text-center py-8">
+        <p class="text-gray-500">No users found matching your criteria</p>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination" class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4">
+      <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+        <div>
+          <p class="text-sm text-gray-700">
+            Showing <span id="pageStart">1</span> to <span id="pageEnd">10</span> of
+            <span id="totalUsers">0</span> users
+          </p>
+        </div>
+        <div>
+          <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+            <button id="prevPage" class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+              Previous
+            </button>
+            <button id="nextPage" class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+              Next
+            </button>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- User Details Modal -->
+<div id="userModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+  <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+    <div id="userModalContent">
+      <!-- Modal content will be dynamically inserted here -->
+    </div>
+  </div>
+</div>
+
+<script>
+  // State management
+  let currentPage = 1;
+  let totalPages = 1;
+  const limit = 10;
+  let currentSearchTerm = '';
+  let currentRole = '';
+
+  // DOM Elements
+  const searchInput = document.getElementById('searchInput');
+  const roleFilter = document.getElementById('roleFilter');
+  const usersTableBody = document.getElementById('usersTableBody');
+  const loadingState = document.getElementById('loadingState');
+  const emptyState = document.getElementById('emptyState');
+  const prevPageBtn = document.getElementById('prevPage');
+  const nextPageBtn = document.getElementById('nextPage');
+  const pageStart = document.getElementById('pageStart');
+  const pageEnd = document.getElementById('pageEnd');
+  const totalUsers = document.getElementById('totalUsers');
+  const userModal = document.getElementById('userModal');
+  const userModalContent = document.getElementById('userModalContent');
+
+  // Fetch users with pagination and filters
+  async function fetchUsers() {
+    try {
+      loadingState.classList.remove('hidden');
+      usersTableBody.classList.add('hidden');
+      emptyState.classList.add('hidden');
+
+      const queryParams = new URLSearchParams({
+        page: currentPage,
+        limit,
+        ...(currentSearchTerm && { search: currentSearchTerm }),
+        ...(currentRole && { role: currentRole })
+      });
+
+      const response = await fetch(`/api/admin/users?${queryParams}`);
+      if (!response.ok) throw new Error('Failed to fetch users');
+
+      const data = await response.json();
+      renderUsers(data);
+      updatePagination(data.pagination);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      alert('Failed to load users');
+    } finally {
+      loadingState.classList.add('hidden');
+      usersTableBody.classList.remove('hidden');
+    }
+  }
+
+  function renderUsers(data) {
+    if (data.users.length === 0) {
+      emptyState.classList.remove('hidden');
+      return;
+    }
+
+    usersTableBody.innerHTML = data.users.map(user => `
+      <tr>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <div class="flex items-center">
+            <div>
+              <div class="text-sm font-medium text-gray-900">${user.name}</div>
+              <div class="text-sm text-gray-500">${user.email}</div>
+            </div>
+          </div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+            ${getRoleBadgeColor(user.role)}">
+            ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+          </span>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+          ${new Date(user.created_at).toLocaleDateString()}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+          <button onclick="viewUserDetails('${user.id}')" class="text-blue-600 hover:text-blue-900 mr-3">
+            View
+          </button>
+          ${user.role !== 'admin' ? `
+            <button onclick="deleteUser('${user.id}')" class="text-red-600 hover:text-red-900">
+              Delete
+            </button>
+          ` : ''}
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function getRoleBadgeColor(role) {
+    switch (role) {
+      case 'admin':
+        return 'bg-purple-100 text-purple-800';
+      case 'shopkeeper':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-blue-100 text-blue-800';
+    }
+  }
+
+  function updatePagination(pagination) {
+    totalPages = pagination.totalPages;
+    const start = (currentPage - 1) * limit + 1;
+    const end = Math.min(start + limit - 1, pagination.total);
+    
+    pageStart.textContent = start;
+    pageEnd.textContent = end;
+    totalUsers.textContent = pagination.total;
+
+    prevPageBtn.disabled = currentPage === 1;
+    nextPageBtn.disabled = currentPage === totalPages;
+    
+    prevPageBtn.classList.toggle('opacity-50', currentPage === 1);
+    nextPageBtn.classList.toggle('opacity-50', currentPage === totalPages);
+  }
+
+  async function viewUserDetails(userId) {
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`);
+      if (!response.ok) throw new Error('Failed to fetch user details');
+
+      const data = await response.json();
+      renderUserModal(data);
+      userModal.classList.remove('hidden');
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+      alert('Failed to load user details');
+    }
+  }
+
+  function renderUserModal(data) {
+    const { user, activity } = data;
+    
+    let activityHtml = '';
+    if (user.role === 'customer') {
+      activityHtml = `
+        <div class="grid grid-cols-3 gap-4 mb-4">
+          <div class="bg-blue-50 p-4 rounded-lg">
+            <h4 class="text-sm font-medium text-blue-800">Total Orders</h4>
+            <p class="text-2xl font-bold text-blue-900">${activity.orders.total_orders}</p>
+          </div>
+          <div class="bg-green-50 p-4 rounded-lg">
+            <h4 class="text-sm font-medium text-green-800">Completed Orders</h4>
+            <p class="text-2xl font-bold text-green-900">${activity.orders.completed_orders}</p>
+          </div>
+          <div class="bg-purple-50 p-4 rounded-lg">
+            <h4 class="text-sm font-medium text-purple-800">Total Spent</h4>
+            <p class="text-2xl font-bold text-purple-900">₹${activity.orders.total_spent || 0}</p>
+          </div>
+        </div>
+      `;
+    } else if (user.role === 'shopkeeper') {
+      activityHtml = `
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div class="bg-blue-50 p-4 rounded-lg">
+            <h4 class="text-sm font-medium text-blue-800">Total Products</h4>
+            <p class="text-2xl font-bold text-blue-900">${activity.products.total_products}</p>
+            <p class="text-sm text-blue-600">Stock: ${activity.products.total_stock}</p>
+          </div>
+          <div class="bg-green-50 p-4 rounded-lg">
+            <h4 class="text-sm font-medium text-green-800">Total Sales</h4>
+            <p class="text-2xl font-bold text-green-900">${activity.sales.total_sales}</p>
+            <p class="text-sm text-green-600">Revenue: ₹${activity.sales.total_revenue || 0}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    userModalContent.innerHTML = `
+      <div class="flex justify-between items-start">
+        <h3 class="text-lg font-bold text-gray-900">User Details</h3>
+        <button onclick="closeUserModal()" class="text-gray-400 hover:text-gray-500">
+          <span class="sr-only">Close</span>
+          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="mt-4">
+        <div class="mb-4">
+          <p class="text-sm text-gray-500">Name</p>
+          <p class="text-base font-medium text-gray-900">${user.name}</p>
+        </div>
+        <div class="mb-4">
+          <p class="text-sm text-gray-500">Email</p>
+          <p class="text-base font-medium text-gray-900">${user.email}</p>
+        </div>
+        <div class="mb-4">
+          <p class="text-sm text-gray-500">Role</p>
+          <p class="text-base font-medium text-gray-900">${user.role}</p>
+        </div>
+        <div class="mb-4">
+          <p class="text-sm text-gray-500">Joined</p>
+          <p class="text-base font-medium text-gray-900">${new Date(user.created_at).toLocaleDateString()}</p>
+        </div>
+
+        ${user.role !== 'admin' ? `
+          <div class="mb-4">
+            <h4 class="text-base font-medium text-gray-900 mb-2">Activity Overview</h4>
+            ${activityHtml}
+          </div>
+
+          <div class="border-t pt-4">
+            <h4 class="text-base font-medium text-gray-900 mb-2">Actions</h4>
+            <div class="flex space-x-4">
+              <button onclick="updateUserRole('${user.id}')" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                Change Role
+              </button>
+              <button onclick="deleteUser('${user.id}')" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
+                Delete User
+              </button>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  async function updateUserRole(userId) {
+    const newRole = prompt('Enter new role (customer/shopkeeper/admin):');
+    if (!newRole) return;
+
+    if (!['customer', 'shopkeeper', 'admin'].includes(newRole)) {
+      alert('Invalid role');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ role: newRole })
+      });
+
+      if (!response.ok) throw new Error('Failed to update user role');
+
+      alert('User role updated successfully');
+      closeUserModal();
+      fetchUsers();
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      alert('Failed to update user role');
+    }
+  }
+
+  async function deleteUser(userId) {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) throw new Error('Failed to delete user');
+
+      alert('User deleted successfully');
+      closeUserModal();
+      fetchUsers();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('Failed to delete user');
+    }
+  }
+
+  function closeUserModal() {
+    userModal.classList.add('hidden');
+  }
+
+  // Event Listeners
+  searchInput.addEventListener('input', debounce(() => {
+    currentSearchTerm = searchInput.value;
+    currentPage = 1;
+    fetchUsers();
+  }, 300));
+
+  roleFilter.addEventListener('change', () => {
+    currentRole = roleFilter.value;
+    currentPage = 1;
+    fetchUsers();
+  });
+
+  prevPageBtn.addEventListener('click', () => {
+    if (currentPage > 1) {
+      currentPage--;
+      fetchUsers();
+    }
+  });
+
+  nextPageBtn.addEventListener('click', () => {
+    if (currentPage < totalPages) {
+      currentPage++;
+      fetchUsers();
+    }
+  });
+
+  // Close modal when clicking outside
+  userModal.addEventListener('click', (e) => {
+    if (e.target === userModal) {
+      closeUserModal();
+    }
+  });
+
+  // Utility function for debouncing
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+  // Initial load
+  fetchUsers();
+</script>

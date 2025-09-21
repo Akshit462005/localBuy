@@ -1,0 +1,406 @@
+<!-- Sales Analytics Dashboard -->
+<div class="max-w-7xl mx-auto">
+  <!-- Date Range Filter -->
+  <div class="bg-white shadow rounded-lg p-6 mb-6">
+    <div class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-4">
+      <h2 class="text-2xl font-bold text-gray-800">Sales Analytics</h2>
+      
+      <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+        <select id="periodFilter" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+          <option value="today">Today</option>
+          <option value="week">This Week</option>
+          <option value="month" selected>This Month</option>
+          <option value="quarter">This Quarter</option>
+          <option value="year">This Year</option>
+          <option value="custom">Custom Range</option>
+        </select>
+
+        <div id="customDateRange" class="hidden flex space-x-2">
+          <input type="date" id="startDate" 
+                 class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+          <input type="date" id="endDate" 
+                 class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+        </div>
+
+        <button id="exportBtn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+          <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Export Report
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+    <!-- Total Revenue -->
+    <div class="bg-white shadow rounded-lg p-6">
+      <div class="flex items-center">
+        <div class="p-3 rounded-full bg-blue-100">
+          <svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div class="ml-4">
+          <p class="text-sm font-medium text-gray-500">Total Revenue</p>
+          <h3 id="totalRevenue" class="text-2xl font-bold text-gray-900">₹0.00</h3>
+          <p id="revenueChange" class="text-sm text-green-600">
+            <span class="font-medium">+0%</span> from previous period
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total Orders -->
+    <div class="bg-white shadow rounded-lg p-6">
+      <div class="flex items-center">
+        <div class="p-3 rounded-full bg-green-100">
+          <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+          </svg>
+        </div>
+        <div class="ml-4">
+          <p class="text-sm font-medium text-gray-500">Total Orders</p>
+          <h3 id="totalOrders" class="text-2xl font-bold text-gray-900">0</h3>
+          <p id="ordersChange" class="text-sm text-green-600">
+            <span class="font-medium">+0%</span> from previous period
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Average Order Value -->
+    <div class="bg-white shadow rounded-lg p-6">
+      <div class="flex items-center">
+        <div class="p-3 rounded-full bg-purple-100">
+          <svg class="h-8 w-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <div class="ml-4">
+          <p class="text-sm font-medium text-gray-500">Average Order Value</p>
+          <h3 id="avgOrderValue" class="text-2xl font-bold text-gray-900">₹0.00</h3>
+          <p id="avgOrderChange" class="text-sm text-green-600">
+            <span class="font-medium">+0%</span> from previous period
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Shopkeepers -->
+    <div class="bg-white shadow rounded-lg p-6">
+      <div class="flex items-center">
+        <div class="p-3 rounded-full bg-yellow-100">
+          <svg class="h-8 w-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        </div>
+        <div class="ml-4">
+          <p class="text-sm font-medium text-gray-500">Active Shopkeepers</p>
+          <h3 id="activeShopkeepers" class="text-2xl font-bold text-gray-900">0</h3>
+          <p id="shopkeepersChange" class="text-sm text-green-600">
+            <span class="font-medium">+0%</span> from previous period
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <!-- Revenue Trend Chart -->
+    <div class="bg-white shadow rounded-lg p-6">
+      <h3 class="text-lg font-medium text-gray-900 mb-4">Revenue Trend</h3>
+      <div class="h-80">
+        <canvas id="revenueTrendChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Top Products Chart -->
+    <div class="bg-white shadow rounded-lg p-6">
+      <h3 class="text-lg font-medium text-gray-900 mb-4">Top Products</h3>
+      <div class="h-80">
+        <canvas id="topProductsChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tables Row -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Top Shopkeepers Table -->
+    <div class="bg-white shadow rounded-lg p-6">
+      <h3 class="text-lg font-medium text-gray-900 mb-4">Top Performing Shopkeepers</h3>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead>
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shopkeeper</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg. Rating</th>
+            </tr>
+          </thead>
+          <tbody id="topShopkeepersBody" class="divide-y divide-gray-200">
+            <!-- Data will be dynamically inserted here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Recent Orders Table -->
+    <div class="bg-white shadow rounded-lg p-6">
+      <h3 class="text-lg font-medium text-gray-900 mb-4">Recent Orders</h3>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead>
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            </tr>
+          </thead>
+          <tbody id="recentOrdersBody" class="divide-y divide-gray-200">
+            <!-- Data will be dynamically inserted here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ChartJS CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// State management
+let currentPeriod = 'month';
+let customStartDate = null;
+let customEndDate = null;
+
+// DOM Elements
+const periodFilter = document.getElementById('periodFilter');
+const customDateRange = document.getElementById('customDateRange');
+const startDateInput = document.getElementById('startDate');
+const endDateInput = document.getElementById('endDate');
+const exportBtn = document.getElementById('exportBtn');
+
+// Initialize charts
+let revenueTrendChart = null;
+let topProductsChart = null;
+
+// Event Listeners
+periodFilter.addEventListener('change', (e) => {
+  currentPeriod = e.target.value;
+  if (currentPeriod === 'custom') {
+    customDateRange.classList.remove('hidden');
+  } else {
+    customDateRange.classList.add('hidden');
+    fetchDashboardData();
+  }
+});
+
+startDateInput.addEventListener('change', () => {
+  customStartDate = startDateInput.value;
+  if (customEndDate) fetchDashboardData();
+});
+
+endDateInput.addEventListener('change', () => {
+  customEndDate = endDateInput.value;
+  if (customStartDate) fetchDashboardData();
+});
+
+exportBtn.addEventListener('click', exportReport);
+
+// Fetch dashboard data
+async function fetchDashboardData() {
+  try {
+    const params = new URLSearchParams({
+      period: currentPeriod,
+      ...(customStartDate && { startDate: customStartDate }),
+      ...(customEndDate && { endDate: customEndDate })
+    });
+
+    const response = await fetch(`/api/admin/sales/dashboard?${params}`);
+    if (!response.ok) throw new Error('Failed to fetch dashboard data');
+
+    const data = await response.json();
+    updateDashboard(data);
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
+    alert('Failed to load dashboard data');
+  }
+}
+
+// Update dashboard with new data
+function updateDashboard(data) {
+  // Update summary cards
+  updateSummaryCards(data.summary);
+  
+  // Update charts
+  updateRevenueTrendChart(data.revenueTrend);
+  updateTopProductsChart(data.topProducts);
+  
+  // Update tables
+  updateTopShopkeepersTable(data.topShopkeepers);
+  updateRecentOrdersTable(data.recentOrders);
+}
+
+function updateSummaryCards(summary) {
+  document.getElementById('totalRevenue').textContent = formatCurrency(summary.revenue.current);
+  document.getElementById('revenueChange').innerHTML = formatPercentageChange(summary.revenue.change);
+  
+  document.getElementById('totalOrders').textContent = summary.orders.current;
+  document.getElementById('ordersChange').innerHTML = formatPercentageChange(summary.orders.change);
+  
+  document.getElementById('avgOrderValue').textContent = formatCurrency(summary.averageOrder.current);
+  document.getElementById('avgOrderChange').innerHTML = formatPercentageChange(summary.averageOrder.change);
+  
+  document.getElementById('activeShopkeepers').textContent = summary.shopkeepers.current;
+  document.getElementById('shopkeepersChange').innerHTML = formatPercentageChange(summary.shopkeepers.change);
+}
+
+function updateRevenueTrendChart(data) {
+  if (revenueTrendChart) {
+    revenueTrendChart.destroy();
+  }
+
+  const ctx = document.getElementById('revenueTrendChart').getContext('2d');
+  revenueTrendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.labels,
+      datasets: [{
+        label: 'Revenue',
+        data: data.values,
+        borderColor: 'rgb(59, 130, 246)',
+        tension: 0.1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: value => '₹' + value.toLocaleString()
+          }
+        }
+      }
+    }
+  });
+}
+
+function updateTopProductsChart(data) {
+  if (topProductsChart) {
+    topProductsChart.destroy();
+  }
+
+  const ctx = document.getElementById('topProductsChart').getContext('2d');
+  topProductsChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(p => p.name),
+      datasets: [{
+        label: 'Sales',
+        data: data.map(p => p.sales),
+        backgroundColor: 'rgb(59, 130, 246)',
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+}
+
+function updateTopShopkeepersTable(shopkeepers) {
+  const tbody = document.getElementById('topShopkeepersBody');
+  tbody.innerHTML = shopkeepers.map(s => `
+    <tr>
+      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${s.name}</td>
+      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formatCurrency(s.revenue)}</td>
+      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${s.orders}</td>
+      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${s.rating.toFixed(1)}</td>
+    </tr>
+  `).join('');
+}
+
+function updateRecentOrdersTable(orders) {
+  const tbody = document.getElementById('recentOrdersBody');
+  tbody.innerHTML = orders.map(o => `
+    <tr>
+      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">#${o.id}</td>
+      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${o.customer}</td>
+      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formatCurrency(o.amount)}</td>
+      <td class="px-6 py-4 whitespace-nowrap">
+        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(o.status)}">
+          ${o.status}
+        </span>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function exportReport() {
+  try {
+    const params = new URLSearchParams({
+      period: currentPeriod,
+      ...(customStartDate && { startDate: customStartDate }),
+      ...(customEndDate && { endDate: customEndDate })
+    });
+
+    const response = await fetch(`/api/admin/sales/export?${params}`);
+    if (!response.ok) throw new Error('Failed to export report');
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sales-report-${currentPeriod}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  } catch (error) {
+    console.error('Error exporting report:', error);
+    alert('Failed to export report');
+  }
+}
+
+// Utility functions
+function formatCurrency(value) {
+  return '₹' + value.toLocaleString('en-IN', {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2
+  });
+}
+
+function formatPercentageChange(change) {
+  const isPositive = change >= 0;
+  const color = isPositive ? 'text-green-600' : 'text-red-600';
+  const symbol = isPositive ? '+' : '';
+  return `<span class="font-medium ${color}">${symbol}${change.toFixed(1)}%</span> from previous period`;
+}
+
+function getStatusColor(status) {
+  const colors = {
+    'pending': 'bg-yellow-100 text-yellow-800',
+    'processing': 'bg-blue-100 text-blue-800',
+    'shipped': 'bg-purple-100 text-purple-800',
+    'delivered': 'bg-green-100 text-green-800',
+    'cancelled': 'bg-red-100 text-red-800'
+  };
+  return colors[status.toLowerCase()] || 'bg-gray-100 text-gray-800';
+}
+
+// Initial load
+fetchDashboardData();
+</script>
