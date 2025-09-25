@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Product - LocalBuy</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">LocalBuy</div>
+            <div class="nav-links">
+                <a href="/shopkeeper/dashboard">Dashboard</a>
+                <a href="/auth/logout">Logout</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="form-container">
+        <div class="form-box">
+            <h2>Edit Product</h2>
+            <% if (locals.error) { %>
+                <div class="error-message">
+                    <%= error %>
+                </div>
+            <% } %>
+            <form action="/shopkeeper/edit-product/<%= product.id %>" method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="name">Product Name</label>
+                    <input type="text" id="name" name="name" value="<%= product.name %>" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" required><%= product.description %></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="price">Price (₹)</label>
+                    <input type="number" id="price" name="price" step="0.01" value="<%= product.price %>" required>
+                </div>
+                <div class="form-group">
+                    <label for="image">Product Image</label>
+                    <input type="file" id="image" name="image" accept="image/*">
+                    <% if (product.image_url) { %>
+                        <div class="current-image">
+                            <p>Current image:</p>
+                            <img src="<%= product.image_url %>" alt="<%= product.name %>" style="max-width: 200px; margin-top: 10px;">
+                            <input type="hidden" name="existing_image" value="<%= product.image_url %>">
+                        </div>
+                    <% } %>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn primary">Update Product</button>
+                    <a href="/shopkeeper/dashboard" class="btn secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 LocalBuy. All rights reserved.</p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Product - LocalBuy</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">LocalBuy</div>
+            <div class="nav-links">
+                <a href="/shopkeeper/dashboard">Dashboard</a>
+                <a href="/auth/logout">Logout</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="form-container">
+        <div class="form-box">
+            <h2>Add New Product</h2>
+            <form action="/shopkeeper/add-product" method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="name">Product Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="price">Price (₹)</label>
+                    <input type="number" id="price" name="price" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="image">Product Image</label>
+                    <input type="file" id="image" name="image" accept="image/*">
+                </div>
+                <button type="submit" class="btn primary">Add Product</button>
+            </form>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 LocalBuy. All rights reserved.</p>
+    </footer>
+</body>
+</html>

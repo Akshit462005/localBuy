@@ -1,29 +1,109 @@
 const express = require('express');
-const { body } = require('express-validator');
 const router = express.Router();
-const authController = require('../controllers/authController');
-const auth = require('../middleware/auth');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { Pool } = require('pg');
 
-// Validation middleware
-const registerValidation = [
-  body('name').trim().notEmpty().withMessage('Name is required'),
-  body('email').isEmail().withMessage('Please enter a valid email'),
-  body('password')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long'),
-  body('role')
-    .isIn(['customer', 'shopkeeper', 'admin'])
-    .withMessage('Invalid role specified')
-];
+const pool = new Pool({
+    user: process.env.POSTGRES_USER,
+    password: process.env.POSTGRES_PASSWORD,
+    host: process.env.POSTGRES_HOST,
+    port: process.env.POSTGRES_PORT,
+    database: process.env.POSTGRES_DB
+});
 
-const loginValidation = [
-  body('email').isEmail().withMessage('Please enter a valid email'),
-  body('password').notEmpty().withMessage('Password is required')
-];
+// Login page
+router.get('/login', (req, res) => {
+    res.render('auth/login');
+});
 
-// Routes
-router.post('/register', registerValidation, authController.register);
-router.post('/login', loginValidation, authController.login);
-router.get('/profile', auth.authenticateUser, authController.getProfile);
+// Register page
+router.get('/register', (req, res) => {
+    res.render('auth/register');
+});
+
+// Register handler
+router.post('/register', async (req, res) => {
+    try {
+        const { username, email, password, role } = req.body;
+        
+        // Validate input
+        if (!username || !email || !password || !role) {
+            return res.render('auth/register', { 
+                error: 'All fields are required',
+                values: { username, email, role }
+            });
+        }
+
+        // Check if user already exists
+        const existingUser = await pool.query(
+            'SELECT * FROM users WHERE email = $1 OR username = $2',
+            [email, username]
+        );
+
+        if (existingUser.rows.length > 0) {
+            return res.render('auth/register', {
+                error: 'User with this email or username already exists',
+                values: { username, email, role }
+            });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        await pool.query(
+            'INSERT INTO users (username, email, password, role) VALUES ($1, $2, $3, $4)',
+            [username, email, hashedPassword, role]
+        );
+
+        res.redirect('/auth/login');
+    } catch (err) {
+        console.error('Registration error:', err);
+        res.render('auth/register', { 
+            error: 'Registration failed. Please try again.',
+            values: { username, email, role }
+        });
+    }
+});
+
+// Login handler
+router.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        
+        if (result.rows.length === 0) {
+            return res.render('auth/login', { error: 'User not found' });
+        }
+
+        const user = result.rows[0];
+        const validPassword = await bcrypt.compare(password, user.password);
+
+        if (!validPassword) {
+            return res.render('auth/login', { error: 'Invalid password' });
+        }
+
+        const token = jwt.sign(
+            { id: user.id, role: user.role },
+            'your-jwt-secret',
+            { expiresIn: '1h' }
+        );
+
+        req.session.token = token;
+
+        if (user.role === 'shopkeeper') {
+            res.redirect('/shopkeeper/dashboard');
+        } else {
+            res.redirect('/user/dashboard');
+        }
+    } catch (err) {
+        res.render('error', { message: 'Login failed' });
+    }
+});
+
+// Logout
+router.get('/logout', (req, res) => {
+    req.session.destroy();
+    res.redirect('/');
+});
 
 module.exports = router;

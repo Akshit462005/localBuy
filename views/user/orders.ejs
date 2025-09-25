@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Orders - LocalBuy</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">LocalBuy</div>
+            <div class="nav-links">
+                <a href="/user/dashboard">Dashboard</a>
+                <a href="/user/cart">Cart</a>
+                <a href="/auth/logout">Logout</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="orders-container">
+        <h1>Your Orders</h1>
+        <% if (orders.length === 0) { %>
+            <div class="empty-orders">
+                <p>You haven't placed any orders yet</p>
+                <a href="/user/dashboard" class="btn primary">Start Shopping</a>
+            </div>
+        <% } else { %>
+            <div class="orders-list">
+                <% orders.forEach(order => { %>
+                    <div class="order-card">
+                        <div class="order-header">
+                            <h3>Order #<%= order.id %></h3>
+                            <p class="order-date"><%= new Date(order.created_at).toLocaleDateString() %></p>
+                            <p class="order-status">Status: <%= order.status %></p>
+                            <p class="order-total">Total: ₹<%= order.total_amount %></p>
+                        </div>
+                        <div class="order-items">
+                            <h4>Items:</h4>
+                            <% order.items.forEach(item => { %>
+                                <div class="order-item">
+                                    <p><%= item.name %></p>
+                                    <p>Quantity: <%= item.quantity %></p>
+                                    <p>Price: ₹<%= item.price %></p>
+                                </div>
+                            <% }) %>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        <% } %>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 LocalBuy. All rights reserved.</p>
+    </footer>
+</body>
+</html>

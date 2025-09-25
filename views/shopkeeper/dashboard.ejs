@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopkeeper Dashboard - LocalBuy</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">LocalBuy</div>
+            <div class="nav-links">
+                <a href="/shopkeeper/add-product">Add Product</a>
+                <a href="/auth/logout">Logout</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="dashboard">
+        <h1>Your Products</h1>
+        <div class="product-grid">
+            <% products.forEach(product => { %>
+                <div class="product-card">
+                    <% if (product.image_url) { %>
+                        <img src="<%= product.image_url %>" alt="<%= product.name %>">
+                    <% } else { %>
+                        <div class="no-image">No Image</div>
+                    <% } %>
+                    <div class="product-info">
+                        <h3><%= product.name %></h3>
+                        <p><%= product.description %></p>
+                        <p class="price">₹<%= product.price %></p>
+                        <div class="product-actions">
+                            <a href="/shopkeeper/edit-product/<%= product.id %>" class="btn secondary">Edit</a>
+                            <form action="/shopkeeper/delete-product/<%= product.id %>" method="POST" class="inline">
+                                <button type="submit" class="btn danger" onclick="return confirm('Are you sure?')">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            <% }) %>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 LocalBuy. All rights reserved.</p>
+    </footer>
+</body>
+</html>
