@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WanderWave Car and Bike Rental</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc70cf;
+            --accent-color: #e74c3c;
+            --text-color: #34495e;
+            --light-bg: #ecf0f1;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            color: var(--text-color);
+        }
+
+        .navbar {
+            background-color: rgba(255, 255, 255, 0.9) !important;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-brand img {
+            height: 100px;
+            transition: transform 0.3s ease;
+        }
+
+        .navbar-brand:hover img {
+            transform: scale(1.1);
+        }
+
+        .nav-link {
+            position: relative;
+            color: var(--text-color) !important;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: 0;
+            left: 0;
+            background-color: var(--primary-color);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        .carousel-item {
+            height: 100vh;
+            min-height: 300px;
+            background: no-repeat center center scroll;
+            -webkit-background-size: cover;
+            -moz-background-size: cover;
+            -o-background-size: cover;
+            background-size: cover;
+        }
+
+        .carousel-caption {
+            bottom: 270px;
+            z-index: 2;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .carousel-caption h5 {
+            font-size: 45px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 25px;
+        }
+
+        .carousel-caption p {
+            width: 60%;
+            margin: auto;
+            font-size: 18px;
+            line-height: 1.9;
+        }
+
+        .carousel-inner::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            background: rgba(0, 0, 0, 0.1);
+            z-index: 1;
+        }
+
+        .car-card, .bike-card {
+            border: none;
+            border-radius: 15px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .car-card:hover, .bike-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .car-card img, .bike-card img {
+            height: 200px;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .car-card:hover img, .bike-card:hover img {
+            transform: scale(1.1);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            transition: all 0.3s ease;
+            border-radius: 25px;
+            padding: 10px 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .social-icons a {
+            font-size: 1.5rem;
+            margin-right: 15px;
+            transition: color 0.3s ease;
+        }
+
+        .social-icons a:hover {
+            color: var(--accent-color) !important;
+        }
+
+        .video-section {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .video-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #bg-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            text-align: center;
+        }
+
+        .video-section h2 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .video-section p {
+            font-size: 1.5rem;
+            max-width: 800px;
+            margin-bottom: 30px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .video-btn {
+            font-size: 1.2rem;
+            padding: 12px 30px;
+            background-color: var(--primary-color);
+            color: #fff;
+            border: none;
+            border-radius: 30px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .video-btn:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        #booking {
+            background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        .footer {
+            background-image: linear-gradient(to right, #0f1615, #1a2928);
+            color: #FFFFFF;
+            padding: 50px 0 25px;
+        }
+
+        .footer-content {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+
+        .footer-section {
+            flex: 1;
+            margin-bottom: 20px;
+            min-width: 200px;
+        }
+
+        .footer-section h4 {
+            color: #FFFFFF;
+            margin-bottom: 20px;
+        }
+
+        .footer-section a {
+            color: #FFFFFF;
+            text-decoration: none;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .footer-section a:hover {
+            color: #285f51;
+        }
+
+        .social-links a {
+            display: inline-block;
+            width: 35px;
+            height: 35px;
+            background-color: #FFFFFF;
+            color: #14141F;
+            text-align: center;
+            line-height: 35px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .social-links a:hover {
+            background-color: #285f51;
+            color: #FFFFFF;
+        }
+
+        .Gallery {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 8px; 
+            margin-top: 10px;
+        }
+        .Gallery img {
+            width: 70px;
+            height: 70px;
+            object-fit: cover; 
+        }
+
+        .footer-menu {
+            margin-top: 10px;
+        }
+
+        .footer-menu a {
+            color: #FFFFFF;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+
+        .footer-menu a:hover {
+            color: #285f51;
+        }
+
+        .footer-section-newsletter {
+            margin-left: 50px;
+        }
+
+        #bikes {
+            background-color: #f8f9fa;
+        }
+
+        .bike-card .card-img-top {
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .bike-card .card-title {
+            color: var(--primary-color);
+        }
+
+        .bike-card .btn-primary {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+
+        .bike-card .btn-primary:hover {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        #vehicle-showcase {
+            padding: 80px 0;
+            background-color: #f0f0f0;
+        }
+
+        .vehicle-image {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .vehicle-image:hover {
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 768px) {
+            .footer-content {
+                flex-direction: column;
+            }
+
+            .footer-section {
+                margin-bottom: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="#"><img src="logo.png" alt="WanderWave Logo"> WanderWave</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="#home">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#cars">Car Rental</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#bikes">Bike Rental</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#vehicle-showcase">Vehicle Showcase</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#booking">Book Now</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#about">About</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#login">Login</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!--Hero Section(Carousel) -->
+    <div id="carouselExampleCaptions" class="carousel slide" data-bs-ride="carousel">
+        <div class="carousel-indicators">
+            <button type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+            <button type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide-to="1" aria-label="Slide 2"></button>
+            <button type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide-to="2" aria-label="Slide 3"></button>
+        </div>
+        <div class="carousel-inner">
+            <div class="carousel-item active" style="background-image: url('https://images.pexels.com/photos/3989923/pexels-photo-3989923.jpeg?auto=compress&cs=tinysrgb&w=800')">
+                <div class="carousel-caption">
+                    <h5>Find Your Perfect Ride</h5>
+                    <p>Explore our wide range of vehicles for your next adventure</p>
+                    <a href="#cars" class="btn btn-primary mt-3">View Cars</a>
+                </div>
+            </div>
+            <div class="carousel-item" style="background-image: url('https://images.pexels.com/photos/3935702/pexels-photo-3935702.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2')">
+                <div class="carousel-caption">
+                    <h5>Two-Wheel Adventures</h5>
+                    <p>Discover the joy of cycling with our bike rentals</p>
+                    <a href="#bikes" class="btn btn-primary mt-3">View Bikes</a>
+                </div>
+            </div>
+            <div class="carousel-item" style="background-image: url('https://images.pexels.com/photos/28316230/pexels-photo-28316230/free-photo-of-a-black-truck-parked-in-the-woods-next-to-a-white-car.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2')">
+                <div class="carousel-caption">
+                    <h5>City Cruising</h5>
+                    <p>Navigate urban landscapes with style and comfort</p>
+                    <a href="#about" class="btn btn-primary mt-3">Learn More</a>
+                </div>
+            </div>
+        </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Previous</span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Next</span>
+        </button>
+    </div>
+
+    <!-- Car Selection Section -->
+    <section id="cars" class="py-5">
+        <div class="container">
+            <h2 class="text-center mb-4">Choose Your Car</h2>
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <div class="card car-card">
+                        <img src="defender.jpeg" class="card-img-top" alt="Off-road Vehicle">
+                        <div class="card-body">
+                            <h5 class="card-title">Off-road Adventure</h5>
+                            <p class="card-text">Perfect for rugged terrains and off-beaten paths.</p>
+                            <button class="btn btn-primary" onclick="scrollToVehicle('offroad')">Select</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card car-card">
+                        <img src="maybach.jpeg" class="card-img-top" alt="Luxury Car">
+                        <div class="card-body">
+                            <h5 class="card-title">Luxury Experience</h5>
+                            <p class="card-text">Travel in style with our premium luxury vehicles.</p>
+                            <button class="btn btn-primary" onclick="scrollToVehicle('luxury')">Select</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card car-card">
+                        <img src="Fortuner.jpeg" class="card-img-top" alt="Economy Car">
+                        <div class="card-body">
+                            <h5 class="card-title">Economy Comfort</h5>
+                            <p class="card-text">Efficient and comfortable for your daily commutes.</p>
+                            <button class="btn btn-primary" onclick="scrollToVehicle('economy')">Select</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Bike Rental Section -->
+    <section id="bikes" class="py-5 bg-light">
+        <div class="container">
+            <h2 class="text-center mb-4">Explore on Two Wheels</h2>
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <div class="card bike-card">
+                        <img src="mountain-bike.jpg" class="card-img-top" alt="Mountain Bike">
+                        <div class="card-body">
+                            <h5 class="card-title">Mountain Bike</h5>
+                            <p class="card-text">Perfect for off-road adventures and trail riding.</p>
+                            <button class="btn btn-primary" onclick="scrollToVehicle('mountain')">Rent Now</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card bike-card">
+                        <img src="city-bike.jpg" class="card-img-top" alt="City Bike">
+                        <div class="card-body">
+                            <h5 class="card-title">City Bike</h5>
+                            <p class="card-text">Comfortable and efficient for urban exploration.</p>
+                            <button class="btn btn-primary" onclick="scrollToVehicle('city')">Rent Now</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card bike-card">
+                        <img src="electric-bike.jpg" class="card-img-top" alt="Electric Bike">
+                        <div class="card-body">
+                            <h5 class="card-title">Electric Bike</h5>
+                            <p class="card-text">Effortless riding with electric assist for longer journeys.</p>
+                            <button class="btn btn-primary" onclick="scrollToVehicle('electric')">Rent Now</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Vehicle Showcase Section -->
+    <section id="vehicle-showcase" class="py-5">
+        <div class="container">
+            <h2 class="text-center mb-5">Our Vehicle Showcase</h2>
+            <div class="row">
+                <div class="col-md-4 mb-4" id="offroad">
+                    <img src="offroad-showcase.jpg" alt="Off-road Vehicle" class="vehicle-image">
+                    <h3 class="mt-3">Off-road Adventure</h3>
+                    <p>Experience the thrill of conquering any terrain with our rugged off-road vehicles.</p>
+                </div>
+                <div class="col-md-4 mb-4" id="luxury">
+                    <img src="luxury-showcase.jpg" alt="Luxury Car" class="vehicle-image">
+                    <h3 class="mt-3">Luxury Experience</h3>
+                    <p>Indulge in the epitome of comfort and style with our premium luxury cars.</p>
+                </div>
+                <div class="col-md-4 mb-4" id="economy">
+                    <img src="economy-showcase.jpg" alt="Economy Car" class="vehicle-image">
+                    <h3 class="mt-3">Economy Comfort</h3>
+                    <p>Enjoy efficient and comfortable rides perfect for your daily commutes and city exploration.</p>
+                </div>
+                <div class="col-md-4 mb-4" id="mountain">
+                    <img src="mountain-bike-showcase.jpg" alt="Mountain Bike" class="vehicle-image">
+                    <h3 class="mt-3">Mountain Bike</h3>
+                    <p>Tackle challenging trails and experience the thrill of off-road cycling adventures.</p>
+                </div>
+                <div class="col-md-4 mb-4" id="city">
+                    <img src="city-bike-showcase.jpg" alt="City Bike" class="vehicle-image">
+                    <h3 class="mt-3">City Bike</h3>
+                    <p>Navigate urban landscapes with ease and comfort on our city-friendly bicycles.</p>
+                </div>
+                <div class="col-md-4 mb-4" id="electric">
+                    <img src="electric-bike-showcase.jpg" alt="Electric Bike" class="vehicle-image">
+                    <h3 class="mt-3">Electric Bike</h3>
+                    <p>Experience effortless riding with the power assist of our modern electric bikes.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!--Video Section -->
+    <section id="about" class="video-section">
+        <div class="video-container">
+            <video autoplay muted loop id="bg-video">
+                <source src="background.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+        <div class="video-overlay">
+            <h2>Experience the Journey</h2>
+            <p>Discover the freedom of the open road and the thrill of exploration with our premium vehicles.</p>
+            <a href="#booking" class="video-btn">Book Your Adventure</a>
+        </div>
+    </section>
+
+    <!-- Booking Form Section -->
+    <section id="booking" class="py-5 bg-light">
+        <div class="container">
+            <h2 class="text-center mb-4">Book Your Ride</h2>
+            <form>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="pickupDate" class="form-label">Pickup Date</label>
+                        <input type="date" class="form-control" id="pickupDate" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="returnDate" class="form-label">Return Date</label>
+                        <input type="date" class="form-control" id="returnDate" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="vehicleType" class="form-label">Vehicle Type</label>
+                        <select class="form-select" id="vehicleType" required>
+                            <option value="">Choose...</option>
+                            <option>Car - Off-road</option>
+                            <option>Car - Luxury</option>
+                            <option>Car - Economy</option>
+                            <option>Bike - Mountain</option>
+                            <option>Bike - City</option>
+                            <option>Bike - Electric</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="location" class="form-label">Pickup Location</label>
+                        <input type="text" class="form-control" id="location" placeholder="Enter city or airport" required>
+                    </div>
+                    <div class="col-12">
+                        <center><button type="submit" class="btn btn-primary">Book Now</button></center>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>Company</h4>
+                    <a href="">About Us</a>
+                    <a href="">Contact Us</a>
+                    <a href="">Privacy Policy</a>
+                    <a href="">Terms & Condition</a>
+                    <a href="">FAQs & Help</a>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <p>Chandigarh, India</p>
+                    <p>0001000169</p>
+                    <p>WanderWave@gmail.com</p>
+                    <div class="social-links">
+                        <a href=""><i class="fab fa-twitter"></i></a>
+                        <a href=""><i class="fab fa-facebook-f"></i></a>
+                        <a href=""><i class="fab fa-youtube"></i></a>
+                        <a href=""><i class="fab fa-linkedin-in"></i></a>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <h4>Gallery</h4>
+                    <div class="Gallery">
+                        <img src="destination-1.jpg" alt="Destination 1">
+                        <img src="destination-2.jpg" alt="Destination 2">
+                        <img src="destination-3.jpg" alt="Destination 3">
+                        <img src="destination-4.jpg" alt="Destination 4">
+                        <img src="destination-1.jpg" alt="Destination 5">
+                        <img src="destination-3.jpg" alt="Destination 6">
+                    </div>
+                </div>
+                <div class="footer-section-newsletter">
+                    <h4>Newsletter</h4>
+                    <p>Sign up for our newsletter to get the latest updates.</p>
+                    <form>
+                        <input type="email" placeholder="Your email" style="width: 100%; padding: 10px; margin-top: 10px;">
+                        <button type="submit" style="width: 100%; padding: 10px; margin-top: 10px; background-color: #28ac97; color: #FFFFFF; border: none; cursor: pointer;">Subscribe</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
+    <script>
+        function scrollToVehicle(category) {
+            const element = document.getElementById(category);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    </script>
+</body>
+</html>
