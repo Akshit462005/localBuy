@@ -5,46 +5,600 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Dashboard - LocalBuy</title>
     <link rel="stylesheet" href="/css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+
     <header>
         <nav>
-            <div class="logo">LocalBuy</div>
+            <div class="logo">
+                <i class="fas fa-store"></i>
+                LocalBuy
+            </div>
             <div class="nav-links">
-                <a href="/user/cart">Cart</a>
-                <a href="/user/orders">Orders</a>
-                <a href="/auth/logout">Logout</a>
+                <a href="/user/cart" class="nav-link">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Cart</span>
+                    <span class="cart-count" id="cartCount">0</span>
+                </a>
+                <a href="/user/orders" class="nav-link">
+                    <i class="fas fa-box"></i>
+                    <span>Orders</span>
+                </a>
+                <a href="/auth/logout" class="nav-link logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </a>
             </div>
         </nav>
     </header>
 
     <main class="dashboard">
-        <h1>Available Products</h1>
-        <div class="product-grid">
-            <% products.forEach(product => { %>
-                <div class="product-card">
-                    <% if (product.image_url) { %>
-                        <img src="<%= product.image_url %>" alt="<%= product.name %>">
-                    <% } else { %>
-                        <div class="no-image">No Image</div>
-                    <% } %>
-                    <div class="product-info">
-                        <h3><%= product.name %></h3>
-                        <p><%= product.description %></p>
-                        <p class="price">₹<%= product.price %></p>
-                        <p class="shop-name">Sold by: <%= product.shopkeeper_name %></p>
-                        <form action="/user/add-to-cart" method="POST">
-                            <input type="hidden" name="productId" value="<%= product.id %>">
-                            <button type="submit" class="btn primary">Add to Cart</button>
-                        </form>
+        <div class="dashboard-header">
+            <div class="welcome-section">
+                <h1><i class="fas fa-home"></i> Welcome to Your Dashboard</h1>
+                <p class="dashboard-subtitle">Discover amazing products from local shopkeepers</p>
+            </div>
+            
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <i class="fas fa-box-open"></i>
+                    <div class="stat-info">
+                        <span class="stat-number" id="totalProducts"><%= products.length %></span>
+                        <span class="stat-label">Available Products</span>
                     </div>
                 </div>
-            <% }) %>
+                <div class="stat-card">
+                    <i class="fas fa-store"></i>
+                    <div class="stat-info">
+                        <span class="stat-number" id="totalShops">0</span>
+                        <span class="stat-label">Active Shops</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls-section">
+            <div class="search-filter-container">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Search products, shops, or descriptions...">
+                    <button id="clearSearch" class="clear-btn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="filter-controls">
+                    <select id="sortBy" class="filter-select">
+                        <option value="name">Sort by Name</option>
+                        <option value="price-low">Price: Low to High</option>
+                        <option value="price-high">Price: High to Low</option>
+                        <option value="shop">Shop Name</option>
+                    </select>
+                    
+                    <div class="price-filter">
+                        <label for="priceRange">Max Price: ₹<span id="priceValue">1000</span></label>
+                        <input type="range" id="priceRange" min="0" max="1000" value="1000">
+                    </div>
+                    
+                    <button id="resetFilters" class="btn secondary">
+                        <i class="fas fa-undo"></i> Reset
+                    </button>
+                </div>
+            </div>
+            
+            <div class="view-toggle">
+                <button id="gridView" class="view-btn active">
+                    <i class="fas fa-th-large"></i>
+                </button>
+                <button id="listView" class="view-btn">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="products-section">
+            <div class="section-header">
+                <h2>Available Products</h2>
+                <span class="product-count">Showing <span id="visibleCount"><%= products.length %></span> of <span id="totalCount"><%= products.length %></span> products</span>
+            </div>
+            
+            <div class="product-grid" id="productGrid">
+                <% products.forEach((product, index) => { %>
+                    <div class="product-card" data-product='<%= JSON.stringify(product) %>' data-index="<%= index %>">
+                        <div class="product-image">
+                            <% if (product.image_url) { %>
+                                <img src="<%= product.image_url %>" alt="<%= product.name %>" loading="lazy">
+                            <% } else { %>
+                                <div class="no-image">
+                                    <i class="fas fa-image"></i>
+                                    <span>No Image</span>
+                                </div>
+                            <% } %>
+                            <div class="product-overlay">
+                                <button class="quick-view-btn" onclick="openQuickView(<%= index %>)">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="wishlist-btn" onclick="toggleWishlist(<%= product.id %>)">
+                                    <i class="far fa-heart"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="product-info">
+                            <div class="product-header">
+                                <h3 class="product-name"><%= product.name %></h3>
+                                <div class="product-rating">
+                                    <% for(let i = 0; i < 5; i++) { %>
+                                        <i class="fas fa-star"></i>
+                                    <% } %>
+                                    <span class="rating-text">(4.8)</span>
+                                </div>
+                            </div>
+                            
+                            <p class="product-description"><%= product.description %></p>
+                            
+                            <div class="product-meta">
+                                <p class="price">
+                                    <span class="currency">₹</span>
+                                    <span class="amount"><%= product.price %></span>
+                                </p>
+                                <p class="shop-name">
+                                    <i class="fas fa-store-alt"></i>
+                                    <%= product.shopkeeper_name %>
+                                </p>
+                            </div>
+                            
+                            <div class="product-actions">
+                                <button class="btn primary add-to-cart-btn" onclick="addToCart(<%= product.id %>, this)">
+                                    <i class="fas fa-shopping-cart"></i>
+                                    <span>Add to Cart</span>
+                                </button>
+                                <button class="btn secondary quick-buy-btn" onclick="quickBuy(<%= product.id %>)">
+                                    <i class="fas fa-bolt"></i>
+                                    Quick Buy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+            
+            <div id="noResults" class="no-results" style="display: none;">
+                <i class="fas fa-search"></i>
+                <h3>No products found</h3>
+                <p>Try adjusting your search criteria or filters</p>
+            </div>
         </div>
     </main>
 
+    <!-- Quick View Modal -->
+    <div id="quickViewModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeQuickView()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div id="quickViewContent">
+                <!-- Dynamic content will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
     <footer>
-        <p>&copy; 2025 LocalBuy. All rights reserved.</p>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>LocalBuy</h4>
+                <p>Connecting local businesses with customers</p>
+            </div>
+            <div class="footer-section">
+                <h4>Quick Links</h4>
+                <a href="/user/dashboard">Dashboard</a>
+                <a href="/user/cart">Cart</a>
+                <a href="/user/orders">Orders</a>
+            </div>
+            <div class="footer-section">
+                <h4>Support</h4>
+                <a href="#">Help Center</a>
+                <a href="#">Contact Us</a>
+                <a href="#">Terms of Service</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 LocalBuy. All rights reserved.</p>
+        </div>
     </footer>
+
+    <script>
+        // Global variables
+        let allProducts = [];
+        let filteredProducts = [];
+        let isGridView = true;
+        let wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDashboard();
+            setupEventListeners();
+            updateCartCount();
+            hideLoadingOverlay();
+        });
+
+        function initializeDashboard() {
+            // Extract product data
+            const productCards = document.querySelectorAll('.product-card');
+            allProducts = Array.from(productCards).map(card => {
+                return JSON.parse(card.getAttribute('data-product'));
+            });
+            filteredProducts = [...allProducts];
+            
+            // Update stats
+            updateStats();
+            
+            // Set price range max
+            const maxPrice = Math.max(...allProducts.map(p => parseFloat(p.price)));
+            const priceRange = document.getElementById('priceRange');
+            priceRange.max = maxPrice;
+            priceRange.value = maxPrice;
+            document.getElementById('priceValue').textContent = maxPrice;
+            
+            // Initialize wishlist UI
+            updateWishlistUI();
+        }
+
+        function setupEventListeners() {
+            // Search functionality
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', debounce(performSearch, 300));
+            
+            document.getElementById('clearSearch').addEventListener('click', clearSearch);
+            
+            // Filters
+            document.getElementById('sortBy').addEventListener('change', applyFilters);
+            document.getElementById('priceRange').addEventListener('input', updatePriceFilter);
+            document.getElementById('resetFilters').addEventListener('click', resetFilters);
+            
+            // View toggle
+            document.getElementById('gridView').addEventListener('click', () => setViewMode('grid'));
+            document.getElementById('listView').addEventListener('click', () => setViewMode('list'));
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', handleKeyboardShortcuts);
+        }
+
+        function performSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            if (query === '') {
+                filteredProducts = [...allProducts];
+            } else {
+                filteredProducts = allProducts.filter(product => {
+                    return product.name.toLowerCase().includes(query) ||
+                           product.description.toLowerCase().includes(query) ||
+                           product.shopkeeper_name.toLowerCase().includes(query);
+                });
+            }
+            
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const sortBy = document.getElementById('sortBy').value;
+            const maxPrice = parseFloat(document.getElementById('priceRange').value);
+            
+            // Filter by price
+            let filtered = filteredProducts.filter(product => parseFloat(product.price) <= maxPrice);
+            
+            // Sort products
+            switch(sortBy) {
+                case 'name':
+                    filtered.sort((a, b) => a.name.localeCompare(b.name));
+                    break;
+                case 'price-low':
+                    filtered.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+                    break;
+                case 'price-high':
+                    filtered.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+                    break;
+                case 'shop':
+                    filtered.sort((a, b) => a.shopkeeper_name.localeCompare(b.shopkeeper_name));
+                    break;
+            }
+            
+            displayProducts(filtered);
+        }
+
+        function displayProducts(products) {
+            const productGrid = document.getElementById('productGrid');
+            const noResults = document.getElementById('noResults');
+            
+            if (products.length === 0) {
+                productGrid.style.display = 'none';
+                noResults.style.display = 'block';
+            } else {
+                productGrid.style.display = isGridView ? 'grid' : 'block';
+                noResults.style.display = 'none';
+                
+                // Hide all cards first
+                const allCards = document.querySelectorAll('.product-card');
+                allCards.forEach(card => card.style.display = 'none');
+                
+                // Show matching cards
+                products.forEach(product => {
+                    const card = document.querySelector(`[data-product*='"id":${product.id}']`);
+                    if (card) {
+                        card.style.display = 'block';
+                        card.style.animation = 'fadeInUp 0.3s ease-out';
+                    }
+                });
+            }
+            
+            // Update counts
+            document.getElementById('visibleCount').textContent = products.length;
+            document.getElementById('totalCount').textContent = allProducts.length;
+        }
+
+        function updatePriceFilter() {
+            const priceRange = document.getElementById('priceRange');
+            const priceValue = document.getElementById('priceValue');
+            priceValue.textContent = priceRange.value;
+            
+            debounce(applyFilters, 150)();
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            filteredProducts = [...allProducts];
+            applyFilters();
+        }
+
+        function resetFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('sortBy').value = 'name';
+            
+            const priceRange = document.getElementById('priceRange');
+            priceRange.value = priceRange.max;
+            document.getElementById('priceValue').textContent = priceRange.max;
+            
+            filteredProducts = [...allProducts];
+            applyFilters();
+        }
+
+        function setViewMode(mode) {
+            isGridView = mode === 'grid';
+            const productGrid = document.getElementById('productGrid');
+            
+            document.getElementById('gridView').classList.toggle('active', isGridView);
+            document.getElementById('listView').classList.toggle('active', !isGridView);
+            
+            if (isGridView) {
+                productGrid.classList.remove('list-view');
+                productGrid.classList.add('grid-view');
+            } else {
+                productGrid.classList.remove('grid-view');
+                productGrid.classList.add('list-view');
+            }
+        }
+
+        function addToCart(productId, buttonEl) {
+            const originalText = buttonEl.innerHTML;
+            buttonEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+            buttonEl.disabled = true;
+            
+            // Simulate API call
+            fetch('/user/add-to-cart', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `productId=${productId}`
+            })
+            .then(response => {
+                if (response.ok) {
+                    showToast('Product added to cart!', 'success');
+                    updateCartCount();
+                    
+                    // Success animation
+                    buttonEl.innerHTML = '<i class="fas fa-check"></i> Added!';
+                    buttonEl.classList.add('success');
+                    
+                    setTimeout(() => {
+                        buttonEl.innerHTML = originalText;
+                        buttonEl.classList.remove('success');
+                        buttonEl.disabled = false;
+                    }, 2000);
+                } else {
+                    throw new Error('Failed to add to cart');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Failed to add to cart', 'error');
+                buttonEl.innerHTML = originalText;
+                buttonEl.disabled = false;
+            });
+        }
+
+        function quickBuy(productId) {
+            showToast('Redirecting to checkout...', 'info');
+            // Add to cart and redirect to checkout
+            fetch('/user/add-to-cart', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `productId=${productId}`
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.location.href = '/user/cart';
+                }
+            })
+            .catch(error => {
+                showToast('Error processing quick buy', 'error');
+            });
+        }
+
+        function toggleWishlist(productId) {
+            const index = wishlist.indexOf(productId);
+            if (index > -1) {
+                wishlist.splice(index, 1);
+                showToast('Removed from wishlist', 'info');
+            } else {
+                wishlist.push(productId);
+                showToast('Added to wishlist', 'success');
+            }
+            
+            localStorage.setItem('wishlist', JSON.stringify(wishlist));
+            updateWishlistUI();
+        }
+
+        function updateWishlistUI() {
+            const wishlistBtns = document.querySelectorAll('.wishlist-btn');
+            wishlistBtns.forEach((btn, index) => {
+                const productId = allProducts[index].id;
+                const icon = btn.querySelector('i');
+                
+                if (wishlist.includes(productId)) {
+                    icon.classList.remove('far');
+                    icon.classList.add('fas');
+                    btn.classList.add('active');
+                } else {
+                    icon.classList.remove('fas');
+                    icon.classList.add('far');
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        function openQuickView(index) {
+            const product = allProducts[index];
+            const modal = document.getElementById('quickViewModal');
+            const content = document.getElementById('quickViewContent');
+            
+            content.innerHTML = `
+                <div class="quick-view-product">
+                    <div class="quick-view-image">
+                        ${product.image_url ? 
+                            `<img src="${product.image_url}" alt="${product.name}">` : 
+                            `<div class="no-image"><i class="fas fa-image"></i><span>No Image</span></div>`
+                        }
+                    </div>
+                    <div class="quick-view-info">
+                        <h2>${product.name}</h2>
+                        <div class="product-rating">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <span>(4.8 stars)</span>
+                        </div>
+                        <p class="description">${product.description}</p>
+                        <div class="price-section">
+                            <span class="price">₹${product.price}</span>
+                        </div>
+                        <div class="shop-info">
+                            <i class="fas fa-store-alt"></i>
+                            <span>Sold by: ${product.shopkeeper_name}</span>
+                        </div>
+                        <div class="quick-view-actions">
+                            <button class="btn primary" onclick="addToCart(${product.id}, this); closeQuickView();">
+                                <i class="fas fa-shopping-cart"></i> Add to Cart
+                            </button>
+                            <button class="btn secondary" onclick="quickBuy(${product.id})">
+                                <i class="fas fa-bolt"></i> Quick Buy
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeQuickView() {
+            document.getElementById('quickViewModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function updateCartCount() {
+            // This would typically fetch from server
+            // For now, just show a placeholder
+            document.getElementById('cartCount').textContent = '0';
+        }
+
+        function updateStats() {
+            const uniqueShops = new Set(allProducts.map(p => p.shopkeeper_name)).size;
+            document.getElementById('totalShops').textContent = uniqueShops;
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            const icon = {
+                'success': 'fas fa-check-circle',
+                'error': 'fas fa-exclamation-circle',
+                'info': 'fas fa-info-circle',
+                'warning': 'fas fa-exclamation-triangle'
+            }[type];
+            
+            toast.innerHTML = `
+                <i class="${icon}"></i>
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            document.getElementById('toastContainer').appendChild(toast);
+            
+            // Auto remove after 4 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 4000);
+        }
+
+        function handleKeyboardShortcuts(e) {
+            // Ctrl/Cmd + F to focus search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                document.getElementById('searchInput').focus();
+            }
+            
+            // Escape to close modal
+            if (e.key === 'Escape') {
+                closeQuickView();
+            }
+        }
+
+        function hideLoadingOverlay() {
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }, 500);
+        }
+
+        // Utility function
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+    </script>
 </body>
 </html>

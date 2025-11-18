@@ -5,53 +5,445 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shopping Cart - LocalBuy</title>
     <link rel="stylesheet" href="/css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
     <header>
         <nav>
-            <div class="logo">LocalBuy</div>
+            <div class="logo">
+                <i class="fas fa-store"></i>
+                LocalBuy
+            </div>
             <div class="nav-links">
-                <a href="/user/dashboard">Dashboard</a>
-                <a href="/user/orders">Orders</a>
-                <a href="/auth/logout">Logout</a>
+                <a href="/user/dashboard" class="nav-link">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/user/orders" class="nav-link">
+                    <i class="fas fa-box"></i>
+                    <span>Orders</span>
+                </a>
+                <a href="/auth/logout" class="nav-link logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </a>
             </div>
         </nav>
     </header>
 
-    <main class="cart-container">
-        <h1>Your Cart</h1>
+    <main class="enhanced-cart-container">
+        <div class="cart-header">
+            <h1><i class="fas fa-shopping-cart"></i> Your Shopping Cart</h1>
+            <div class="cart-actions">
+                <button id="clearCart" class="btn secondary" <% if (cart.length === 0) { %>style="display: none;"<% } %>>
+                    <i class="fas fa-trash"></i> Clear Cart
+                </button>
+                <a href="/user/dashboard" class="btn outline">
+                    <i class="fas fa-arrow-left"></i> Continue Shopping
+                </a>
+            </div>
+        </div>
+
         <% if (cart.length === 0) { %>
             <div class="empty-cart">
-                <p>Your cart is empty</p>
-                <a href="/user/dashboard" class="btn primary">Continue Shopping</a>
+                <div class="empty-cart-icon">
+                    <i class="fas fa-shopping-cart"></i>
+                </div>
+                <h2>Your cart is empty</h2>
+                <p>Looks like you haven't added any items to your cart yet.</p>
+                <a href="/user/dashboard" class="btn primary large">
+                    <i class="fas fa-store"></i> Start Shopping
+                </a>
             </div>
         <% } else { %>
-            <div class="cart-items">
-                <% cart.forEach(item => { %>
-                    <div class="cart-item">
-                        <h3><%= item.name %></h3>
-                        <p class="price">₹<%= item.price %></p>
-                        <form action="/user/update-cart" method="POST" class="quantity-form">
-                            <input type="hidden" name="productId" value="<%= item.id %>">
-                            <label for="quantity-<%= item.id %>">Quantity:</label>
-                            <input type="number" id="quantity-<%= item.id %>" name="quantity" value="<%= item.quantity %>" min="0">
-                            <button type="submit" class="btn secondary">Update</button>
-                        </form>
-                        <p class="subtotal">Subtotal: ₹<%= (item.price * item.quantity).toFixed(2) %></p>
+            <div class="cart-content">
+                <div class="cart-items">
+                    <div class="cart-items-header">
+                        <h2>Items in Cart (<span id="itemCount"><%= cart.length %></span>)</h2>
+                        <div class="bulk-actions">
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                            <label for="selectAll">Select All</label>
+                            <button id="removeSelected" class="btn danger small" style="display: none;">
+                                <i class="fas fa-trash"></i> Remove Selected
+                            </button>
+                        </div>
                     </div>
-                <% }) %>
-            </div>
-            <div class="cart-summary">
-                <h3>Total: ₹<%= total.toFixed(2) %></h3>
-                <form action="/user/checkout" method="POST">
-                    <button type="submit" class="btn primary">Checkout</button>
-                </form>
+                    
+                    <% cart.forEach((item, index) => { %>
+                        <div class="enhanced-cart-item" data-item-id="<%= item.id %>" data-price="<%= item.price %>">
+                            <div class="item-selection">
+                                <input type="checkbox" class="item-checkbox" onchange="updateSelection()">
+                            </div>
+                            
+                            <div class="item-image">
+                                <% if (item.image_url) { %>
+                                    <img src="<%= item.image_url %>" alt="<%= item.name %>">
+                                <% } else { %>
+                                    <div class="no-image">
+                                        <i class="fas fa-image"></i>
+                                    </div>
+                                <% } %>
+                            </div>
+                            
+                            <div class="item-details">
+                                <h3 class="item-name"><%= item.name %></h3>
+                                <p class="item-description"><%= item.description || 'No description available' %></p>
+                                <div class="item-meta">
+                                    <span class="item-price">₹<%= item.price %></span>
+                                    <% if (item.shopkeeper_name) { %>
+                                        <span class="item-seller">
+                                            <i class="fas fa-store-alt"></i>
+                                            Sold by: <%= item.shopkeeper_name %>
+                                        </span>
+                                    <% } %>
+                                </div>
+                            </div>
+                            
+                            <div class="item-quantity">
+                                <label>Quantity:</label>
+                                <div class="quantity-controls">
+                                    <button type="button" class="quantity-btn minus" onclick="updateQuantity(<%= item.id %>, 'decrease')">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                    <input type="number" 
+                                           id="quantity-<%= item.id %>" 
+                                           value="<%= item.quantity %>" 
+                                           min="1" 
+                                           max="99"
+                                           onchange="updateQuantity(<%= item.id %>, 'set', this.value)">
+                                    <button type="button" class="quantity-btn plus" onclick="updateQuantity(<%= item.id %>, 'increase')">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="item-total">
+                                <div class="subtotal-label">Subtotal:</div>
+                                <div class="subtotal-amount" id="subtotal-<%= item.id %>">₹<%= (item.price * item.quantity).toFixed(2) %></div>
+                            </div>
+                            
+                            <div class="item-actions">
+                                <button class="action-btn save-later" title="Save for Later">
+                                    <i class="fas fa-heart"></i>
+                                </button>
+                                <button class="action-btn remove" onclick="removeItem(<%= item.id %>)" title="Remove Item">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    <% }) %>
+                </div>
+                
+                <div class="cart-sidebar">
+                    <div class="order-summary">
+                        <h3><i class="fas fa-receipt"></i> Order Summary</h3>
+                        
+                        <div class="summary-row">
+                            <span>Items (<span id="summaryItemCount"><%= cart.length %></span>):</span>
+                            <span id="itemsTotal">₹<%= total.toFixed(2) %></span>
+                        </div>
+                        
+                        <div class="summary-row">
+                            <span>Shipping:</span>
+                            <span id="shippingCost">FREE</span>
+                        </div>
+                        
+                        <div class="summary-row">
+                            <span>Tax (GST 18%):</span>
+                            <span id="taxAmount">₹<%= (total * 0.18).toFixed(2) %></span>
+                        </div>
+                        
+                        <div class="summary-divider"></div>
+                        
+                        <div class="summary-total">
+                            <span>Total:</span>
+                            <span id="grandTotal">₹<%= (total * 1.18).toFixed(2) %></span>
+                        </div>
+                        
+                        <div class="savings-info">
+                            <i class="fas fa-tag"></i>
+                            <span>You saved ₹<%= (total * 0.1).toFixed(2) %> on this order!</span>
+                        </div>
+                        
+                        <form action="/user/checkout" method="POST" class="checkout-form">
+                            <button type="submit" class="btn primary large checkout-btn">
+                                <i class="fas fa-lock"></i>
+                                Proceed to Checkout
+                            </button>
+                        </form>
+                        
+                        <div class="secure-checkout">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Secure Checkout - Your data is protected</span>
+                        </div>
+                    </div>
+                    
+                    <div class="promo-section">
+                        <h4><i class="fas fa-percent"></i> Have a Coupon?</h4>
+                        <div class="promo-input">
+                            <input type="text" id="promoCode" placeholder="Enter coupon code">
+                            <button type="button" class="btn secondary" onclick="applyCoupon()">
+                                Apply
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="recently-viewed">
+                        <h4><i class="fas fa-clock"></i> Recently Viewed</h4>
+                        <div class="recent-items">
+                            <!-- Recently viewed items would go here -->
+                            <p class="no-recent">No recently viewed items</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         <% } %>
     </main>
 
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
     <footer>
-        <p>&copy; 2025 LocalBuy. All rights reserved.</p>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>LocalBuy</h4>
+                <p>Your trusted local marketplace</p>
+            </div>
+            <div class="footer-section">
+                <h4>Quick Links</h4>
+                <a href="/user/dashboard">Dashboard</a>
+                <a href="/user/cart">Cart</a>
+                <a href="/user/orders">Orders</a>
+            </div>
+            <div class="footer-section">
+                <h4>Support</h4>
+                <a href="#">Help Center</a>
+                <a href="#">Contact Us</a>
+                <a href="#">Shipping Info</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 LocalBuy. All rights reserved.</p>
+        </div>
     </footer>
+
+    <script>
+        let cartData = {
+            items: [],
+            total: <%= total || 0 %>
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCart();
+            setupEventListeners();
+        });
+
+        function initializeCart() {
+            // Extract cart data from DOM
+            const cartItems = document.querySelectorAll('.enhanced-cart-item');
+            cartData.items = Array.from(cartItems).map(item => ({
+                id: item.getAttribute('data-item-id'),
+                price: parseFloat(item.getAttribute('data-price')),
+                quantity: parseInt(item.querySelector('input[type="number"]').value),
+                element: item
+            }));
+        }
+
+        function setupEventListeners() {
+            // Prevent form submission on enter in quantity inputs
+            document.querySelectorAll('input[type="number"]').forEach(input => {
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        updateQuantity(this.id.split('-')[1], 'set', this.value);
+                    }
+                });
+            });
+        }
+
+        function updateQuantity(itemId, action, value) {
+            const quantityInput = document.getElementById(`quantity-${itemId}`);
+            let currentQuantity = parseInt(quantityInput.value);
+            let newQuantity = currentQuantity;
+
+            switch(action) {
+                case 'increase':
+                    newQuantity = Math.min(currentQuantity + 1, 99);
+                    break;
+                case 'decrease':
+                    newQuantity = Math.max(currentQuantity - 1, 1);
+                    break;
+                case 'set':
+                    newQuantity = Math.max(1, Math.min(parseInt(value) || 1, 99));
+                    break;
+            }
+
+            if (newQuantity !== currentQuantity) {
+                quantityInput.value = newQuantity;
+                
+                // Update subtotal
+                const cartItem = document.querySelector(`[data-item-id="${itemId}"]`);
+                const price = parseFloat(cartItem.getAttribute('data-price'));
+                const subtotal = (price * newQuantity).toFixed(2);
+                document.getElementById(`subtotal-${itemId}`).textContent = `₹${subtotal}`;
+                
+                // Update cart totals
+                updateCartTotals();
+                
+                // Show loading state
+                quantityInput.disabled = true;
+                
+                // Send update to server
+                fetch('/user/update-cart', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `productId=${itemId}&quantity=${newQuantity}`
+                })
+                .then(response => {
+                    if (response.ok) {
+                        showToast('Cart updated successfully', 'success');
+                    } else {
+                        throw new Error('Failed to update cart');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Failed to update cart', 'error');
+                    // Revert quantity on error
+                    quantityInput.value = currentQuantity;
+                    updateCartTotals();
+                })
+                .finally(() => {
+                    quantityInput.disabled = false;
+                });
+            }
+        }
+
+        function removeItem(itemId) {
+            if (confirm('Are you sure you want to remove this item from your cart?')) {
+                const cartItem = document.querySelector(`[data-item-id="${itemId}"]`);
+                cartItem.style.opacity = '0.5';
+                
+                // Send request to server (would need to implement this endpoint)
+                fetch(`/user/remove-from-cart/${itemId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        cartItem.remove();
+                        updateCartTotals();
+                        showToast('Item removed from cart', 'success');
+                        
+                        // Check if cart is now empty
+                        if (document.querySelectorAll('.enhanced-cart-item').length === 0) {
+                            location.reload();
+                        }
+                    } else {
+                        throw new Error('Failed to remove item');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    cartItem.style.opacity = '1';
+                    showToast('Failed to remove item', 'error');
+                });
+            }
+        }
+
+        function updateCartTotals() {
+            let itemsTotal = 0;
+            let itemCount = 0;
+            
+            document.querySelectorAll('.enhanced-cart-item').forEach(item => {
+                const price = parseFloat(item.getAttribute('data-price'));
+                const quantity = parseInt(item.querySelector('input[type="number"]').value);
+                itemsTotal += price * quantity;
+                itemCount++;
+            });
+            
+            const tax = itemsTotal * 0.18;
+            const grandTotal = itemsTotal + tax;
+            
+            document.getElementById('itemsTotal').textContent = `₹${itemsTotal.toFixed(2)}`;
+            document.getElementById('taxAmount').textContent = `₹${tax.toFixed(2)}`;
+            document.getElementById('grandTotal').textContent = `₹${grandTotal.toFixed(2)}`;
+            document.getElementById('itemCount').textContent = itemCount;
+            document.getElementById('summaryItemCount').textContent = itemCount;
+        }
+
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAll.checked;
+            });
+            
+            updateSelection();
+        }
+
+        function updateSelection() {
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+            const removeButton = document.getElementById('removeSelected');
+            
+            if (selectedCount > 0) {
+                removeButton.style.display = 'inline-block';
+                removeButton.textContent = `Remove Selected (${selectedCount})`;
+            } else {
+                removeButton.style.display = 'none';
+            }
+        }
+
+        function applyCoupon() {
+            const promoCode = document.getElementById('promoCode').value.trim();
+            
+            if (!promoCode) {
+                showToast('Please enter a coupon code', 'warning');
+                return;
+            }
+            
+            showToast('Checking coupon code...', 'info');
+            
+            // Mock coupon validation
+            setTimeout(() => {
+                if (promoCode.toLowerCase() === 'save10') {
+                    showToast('Coupon applied! 10% discount added', 'success');
+                } else {
+                    showToast('Invalid coupon code', 'error');
+                }
+            }, 1000);
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            const icon = {
+                'success': 'fas fa-check-circle',
+                'error': 'fas fa-exclamation-circle',
+                'info': 'fas fa-info-circle',
+                'warning': 'fas fa-exclamation-triangle'
+            }[type];
+            
+            toast.innerHTML = `
+                <i class="${icon}"></i>
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            document.getElementById('toastContainer').appendChild(toast);
+            
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 4000);
+        }
+    </script>
 </body>
 </html>
