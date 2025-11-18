@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LocalBuy - Your Local Shopping Platform</title>
-    <link rel="stylesheet" href="/css/style.css">
-</head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>LocalBuy - Your Local Shopping Platform</title>
+        <link rel="stylesheet" href="/css/style.css">
+        <meta name="description" content="Shop local — find products from nearby shops, manage orders, and support your community.">
+        <meta name="theme-color" content="#4a90e2">
+    </head>
 <body>
     <header>
         <nav>
@@ -17,20 +19,247 @@
             </div>
         </nav>
     </header>
-    
-    <main class="hero">
-        <div class="hero-content">
-            <h1>Welcome to LocalBuy</h1>
-            <p>Connect with local shops and find amazing products</p>
-            <div class="cta-buttons">
-                <a href="/auth/register" class="btn primary">Get Started</a>
-                <a href="/auth/login" class="btn secondary">Login</a>
+
+    <main>
+        <!-- Hero -->
+        <section class="hero">
+            <div class="hero-content">
+                <h1>Discover great products from shops near you</h1>
+                <p class="lead">Support local businesses, find unique items, and get fast pickup or delivery — all in one simple place.</p>
+                <div class="cta-buttons">
+                    <a href="/auth/register" class="btn primary">Create an account</a>
+                    <a href="/auth/login" class="btn secondary">Sign in</a>
+                </div>
             </div>
+        </section>
+
+        <!-- Features -->
+        <section class="features">
+            <div class="container">
+                <h2 class="section-title">Built for your neighborhood</h2>
+                <p class="section-sub">Tools for shopkeepers and shoppers—easy product management, secure orders, and transparent pricing.</p>
+
+                <div class="feature-grid">
+                    <div class="feature">
+                        <div class="icon">🛍️</div>
+                        <h3>Shop local products</h3>
+                        <p>Browse curated items from nearby shops and discover unique finds you won't see on large marketplaces.</p>
+                    </div>
+
+                    <div class="feature">
+                        <div class="icon">⚡</div>
+                        <h3>Fast pickup & delivery</h3>
+                        <p>Choose pickup or local delivery and get your order when you want it.</p>
+                    </div>
+
+                    <div class="feature">
+                        <div class="icon">🔒</div>
+                        <h3>Secure & simple</h3>
+                        <p>Sign up quickly and manage orders with a clean dashboard for both shopkeepers and customers.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    <!-- How it works -->
+    <section class="how-it-works">
+      <div class="container">
+        <h2 class="section-title">How LocalBuy works</h2>
+        <p class="section-sub">Getting started is simple — browse, order, and pickup or get delivery from local shops.</p>
+        
+        <div class="steps-grid">
+          <div class="step">
+            <div class="step-number">1</div>
+            <h3>Create your account</h3>
+            <p>Sign up as a customer to browse products, or as a shopkeeper to list your items and reach more customers.</p>
+          </div>
+          
+          <div class="step">
+            <div class="step-number">2</div>
+            <h3>Browse & discover</h3>
+            <p>Explore products from verified local shops in your area. Filter by category, price, or distance.</p>
+          </div>
+          
+          <div class="step">
+            <div class="step-number">3</div>
+            <h3>Order with confidence</h3>
+            <p>Add items to your cart, choose pickup or delivery, and complete your secure checkout process.</p>
+          </div>
+          
+          <div class="step">
+            <div class="step-number">4</div>
+            <h3>Get your products</h3>
+            <p>Pick up your order directly from the shop or receive fast local delivery to your doorstep.</p>
+          </div>
         </div>
+      </div>
+    </section>
+
+    <!-- Categories preview -->
+    <section class="categories container">
+      <h2 class="section-title">Popular categories</h2>
+      <div class="category-grid">
+        <div class="category-card">
+          <img src="/images/uploads/category-food.jpg" alt="Food & Grocery" onerror="this.src='https://images.pexels.com/photos/461198/pexels-photo-461198.jpeg'">
+          <h4>Food & Grocery</h4>
+          <p>Fresh produce, pantry essentials, local specialties</p>
+        </div>
+        <div class="category-card">
+          <img src="/images/uploads/category-fashion.jpg" alt="Fashion" onerror="this.src='https://images.pexels.com/photos/2983464/pexels-photo-2983464.jpeg'">
+          <h4>Fashion</h4>
+          <p>Clothing, accessories, handmade items</p>
+        </div>
+        <div class="category-card">
+          <img src="/images/uploads/category-home.jpg" alt="Home & Living" onerror="this.src='https://images.pexels.com/photos/298842/pexels-photo-298842.jpeg'">
+          <h4>Home & Living</h4>
+          <p>Furniture, decor, plants, household items</p>
+        </div>
+        <div class="category-card">
+          <img src="/images/uploads/category-electronics.jpg" alt="Electronics" onerror="this.src='https://images.pexels.com/photos/356056/pexels-photo-356056.jpeg'">
+          <h4>Electronics</h4>
+          <p>Gadgets, accessories, repair services</p>
+        </div>
+        <div class="category-card">
+          <img src="/images/uploads/category-health.jpg" alt="Health & Beauty" onerror="this.src='https://images.pexels.com/photos/3762879/pexels-photo-3762879.jpeg'">
+          <h4>Health & Beauty</h4>
+          <p>Skincare, wellness, natural products</p>
+        </div>
+        <div class="category-card">
+          <img src="/images/uploads/category-books.jpg" alt="Books & Stationery" onerror="this.src='https://images.pexels.com/photos/1370295/pexels-photo-1370295.jpeg'">
+          <h4>Books & Stationery</h4>
+          <p>Books, art supplies, office materials</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Statistics -->
+    <section class="stats">
+      <div class="container">
+        <h2 class="section-title">LocalBuy by the numbers</h2>
+        <div class="stats-grid">
+          <div class="stat">
+            <div class="stat-number">2,500+</div>
+            <div class="stat-label">Local shops</div>
+          </div>
+          <div class="stat">
+            <div class="stat-number">15,000+</div>
+            <div class="stat-label">Happy customers</div>
+          </div>
+          <div class="stat">
+            <div class="stat-number">50,000+</div>
+            <div class="stat-label">Orders delivered</div>
+          </div>
+          <div class="stat">
+            <div class="stat-number">4.8★</div>
+            <div class="stat-label">Average rating</div>
+          </div>
+        </div>
+      </div>
+    </section>        <!-- Testimonials -->
+        <section class="testimonials">
+            <div class="container">
+                <h2 class="section-title">What locals say</h2>
+                <div class="testimonial-grid">
+                    <blockquote class="testimonial">
+                        <p>"LocalBuy made it easy for my shop to reach more customers — orders increased within weeks. The dashboard is intuitive and customer support is excellent."</p>
+                        <cite>— Priya Sharma, Electronics Store Owner</cite>
+                    </blockquote>
+
+                    <blockquote class="testimonial">
+                        <p>"I found specialty items from nearby makers that I never knew existed. I love supporting small businesses through LocalBuy, and the delivery is always prompt."</p>
+                        <cite>— Rohan Gupta, Regular Customer</cite>
+                    </blockquote>
+
+                    <blockquote class="testimonial">
+                        <p>"As a baker, LocalBuy helped me connect with customers who appreciate fresh, local goods. My sales have tripled since joining the platform."</p>
+                        <cite>— Maya Patel, Local Bakery</cite>
+                    </blockquote>
+
+                    
+                </div>
+            </div>
+        </section>
+
+        <!-- For shopkeepers section -->
+        <section class="for-shopkeepers">
+            <div class="container">
+                <div class="shopkeeper-content">
+                    <div class="shopkeeper-text">
+                        <h2>Grow your business with LocalBuy</h2>
+                        <p class="lead">Join thousands of local shop owners who are expanding their reach and increasing sales through our platform.</p>
+                        
+                        <div class="benefits-list">
+                            <div class="benefit">
+                                <span class="benefit-icon">📈</span>
+                                <div>
+                                    <h4>Increase your sales</h4>
+                                    <p>Reach customers beyond your physical location and grow your business online.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="benefit">
+                                <span class="benefit-icon">🛠️</span>
+                                <div>
+                                    <h4>Easy product management</h4>
+                                    <p>Simple tools to add products, manage inventory, and track orders from one dashboard.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="benefit">
+                                <span class="benefit-icon">💰</span>
+                                <div>
+                                    <h4>Low fees, high returns</h4>
+                                    <p>Keep more of your profits with our competitive fee structure designed for local businesses.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="cta-buttons">
+                            <a href="/auth/register" class="btn primary">Start selling today</a>
+                            <a href="/about" class="btn secondary-dark">Learn more</a>
+                        </div>
+                    </div>
+                    
+                    <div class="shopkeeper-image">
+                        <img src="/images/uploads/shopkeeper-hero.jpg" alt="Happy shopkeeper" onerror="this.src='https://images.pexels.com/photos/5632381/pexels-photo-5632381.jpeg'">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Final CTA -->
+        <section class="final-cta">
+            <div class="container">
+                <h2>Ready to discover local shopping?</h2>
+                <p>Join our growing community of shoppers and shop owners who are building stronger local economies.</p>
+                <div class="cta-buttons">
+                    <a href="/auth/register" class="btn primary large">Get started now</a>
+                </div>
+            </div>
+        </section>
     </main>
 
     <footer>
-        <p>&copy; 2025 LocalBuy. All rights reserved.</p>
+        <div class="container footer-grid">
+            <div>
+                <h4>LocalBuy</h4>
+                <p>Connecting communities through local commerce.</p>
+            </div>
+            <div>
+                <h4>Quick links</h4>
+                <nav class="footer-links">
+                    <a href="/">Home</a>
+                    <a href="/auth/login">Login</a>
+                    <a href="/auth/register">Register</a>
+                </nav>
+            </div>
+            <div>
+                <h4>Contact</h4>
+                <p>support@localbuy.example</p>
+            </div>
+        </div>
+        <div class="footer-bottom">&copy; 2025 LocalBuy. All rights reserved.</div>
     </footer>
-</body>
+
+    </body>
 </html>

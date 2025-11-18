@@ -5,6 +5,47 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Redis setup (optional - will fall back to memory store if Redis fails)
+let redisStore = null;
+try {
+    const RedisStore = require('connect-redis')(session);
+    const { createClient } = require('redis');
+    
+    const redisClient = createClient({
+        socket: {
+            host: process.env.REDIS_HOST || 'localhost',
+            port: process.env.REDIS_PORT || 6379
+        },
+        password: process.env.REDIS_PASSWORD || undefined,
+        database: process.env.REDIS_DB || 0
+    });
+
+    redisClient.on('error', (err) => {
+        console.error('Redis Client Error:', err);
+        console.log('Falling back to memory store for sessions');
+    });
+
+    redisClient.on('connect', () => {
+        console.log('Connected to Redis successfully');
+    });
+
+    // Connect to Redis
+    redisClient.connect()
+        .then(() => {
+            redisStore = new RedisStore({ 
+                client: redisClient,
+                prefix: 'localbuy:'
+            });
+        })
+        .catch((err) => {
+            console.error('Redis connection failed:', err);
+            console.log('Using memory store for sessions');
+        });
+} catch (error) {
+    console.error('Redis setup failed:', error);
+    console.log('Using memory store for sessions');
+}
+
 // Database connection
 const { Pool } = require('pg');
 const pool = new Pool({
@@ -20,11 +61,28 @@ const pool = new Pool({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
-app.use(session({
-    secret: 'your-secret-key',
+
+// Session configuration with Redis store (fallback to memory store)
+const sessionConfig = {
+    secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
     resave: false,
-    saveUninitialized: false
-}));
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+        httpOnly: true,
+        maxAge: 1000 * 60 * 60 * 24 // 24 hours
+    }
+};
+
+// Add Redis store if available
+if (redisStore) {
+    sessionConfig.store = redisStore;
+    console.log('Using Redis for session storage');
+} else {
+    console.log('Using memory store for session storage');
+}
+
+app.use(session(sessionConfig));
 
 // Set view engine
 app.set('view engine', 'ejs');
@@ -55,8 +113,17 @@ async function initDb() {
     }
 }
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-    initDb();
-});
+// Export app for testing
+function createApp() {
+    return app;
+}
+
+// Start server only if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+        initDb();
+    });
+}
+
+module.exports = { createApp, app };

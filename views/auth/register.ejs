@@ -3,42 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - LocalBuy</title>
+    <title>Join LocalBuy - Register</title>
     <link rel="stylesheet" href="/css/style.css">
+    <meta name="description" content="Join LocalBuy and start shopping from local stores or grow your business by selling locally">
 </head>
 <body>
     <div class="auth-container">
         <div class="auth-box">
-            <h2>Register</h2>
+            <h2>Join LocalBuy</h2>
             <% if (locals.error) { %>
                 <div class="error-message">
                     <%= error %>
                 </div>
             <% } %>
-            <form action="/auth/register" method="POST">
+            <form action="/auth/register" method="POST" id="registerForm">
                 <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" value="<%= locals.values ? values.username : '' %>" required>
+                    <label for="username">Full Name</label>
+                    <input type="text" id="username" name="username" placeholder="Enter your full name" 
+                           value="<%= locals.values ? values.username : '' %>" required autocomplete="name">
                 </div>
                 <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" name="email" value="<%= locals.values ? values.email : '' %>" required>
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" placeholder="Enter your email address" 
+                           value="<%= locals.values ? values.email : '' %>" required autocomplete="email">
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required>
+                    <input type="password" id="password" name="password" placeholder="Create a strong password" 
+                           required autocomplete="new-password" minlength="6">
                 </div>
                 <div class="form-group">
-                    <label for="role">Role</label>
+                    <label for="role">I want to</label>
                     <select id="role" name="role" required>
-                        <option value="user" <%= locals.values && values.role === 'user' ? 'selected' : '' %>>User</option>
-                        <option value="shopkeeper" <%= locals.values && values.role === 'shopkeeper' ? 'selected' : '' %>>Shopkeeper</option>
+                        <option value="">Choose your role</option>
+                        <option value="user" <%= locals.values && values.role === 'user' ? 'selected' : '' %>>🛍️ Shop from local stores</option>
+                        <option value="shopkeeper" <%= locals.values && values.role === 'shopkeeper' ? 'selected' : '' %>>🏪 Sell products online</option>
                     </select>
                 </div>
-                <button type="submit" class="btn primary">Register</button>
+                <button type="submit" class="btn primary" id="registerBtn">
+                    Create Account
+                </button>
             </form>
-            <p class="auth-link">Already have an account? <a href="/auth/login">Login here</a></p>
+            <p class="auth-link">Already part of LocalBuy? <a href="/auth/login">Sign in here</a></p>
         </div>
     </div>
+
+    <script>
+        // Add loading state to button on form submit
+        document.getElementById('registerForm').addEventListener('submit', function() {
+            const btn = document.getElementById('registerBtn');
+            btn.classList.add('loading');
+            btn.disabled = true;
+        });
+        
+        // Password strength indicator
+        const passwordInput = document.getElementById('password');
+        passwordInput.addEventListener('input', function() {
+            const password = this.value;
+            const strength = getPasswordStrength(password);
+            this.setAttribute('data-strength', strength);
+        });
+        
+        function getPasswordStrength(password) {
+            let score = 0;
+            if (password.length >= 8) score++;
+            if (/[a-z]/.test(password)) score++;
+            if (/[A-Z]/.test(password)) score++;
+            if (/[0-9]/.test(password)) score++;
+            if (/[^A-Za-z0-9]/.test(password)) score++;
+            
+            if (score < 2) return 'weak';
+            if (score < 4) return 'medium';
+            return 'strong';
+        }
+        
+        // Add focus animations
+        document.querySelectorAll('input, select').forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.classList.add('focused');
+            });
+            input.addEventListener('blur', function() {
+                if (!this.value) {
+                    this.parentElement.classList.remove('focused');
+                }
+            });
+        });
+    </script>
 </body>
 </html>

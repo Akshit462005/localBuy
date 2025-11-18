@@ -60,7 +60,11 @@ router.post('/register', async (req, res) => {
         console.error('Registration error:', err);
         res.render('auth/register', { 
             error: 'Registration failed. Please try again.',
-            values: { username, email, role }
+            values: { 
+                username: req.body.username || '', 
+                email: req.body.email || '', 
+                role: req.body.role || 'user' 
+            }
         });
     }
 });
