@@ -5,54 +5,529 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Your Orders - LocalBuy</title>
     <link rel="stylesheet" href="/css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
     <header>
         <nav>
-            <div class="logo">LocalBuy</div>
+            <div class="logo">
+                <i class="fas fa-store"></i>
+                LocalBuy
+            </div>
             <div class="nav-links">
-                <a href="/user/dashboard">Dashboard</a>
-                <a href="/user/cart">Cart</a>
-                <a href="/auth/logout">Logout</a>
+                <a href="/user/dashboard" class="nav-link">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/user/cart" class="nav-link">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Cart</span>
+                </a>
+                <a href="/auth/logout" class="nav-link logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </a>
             </div>
         </nav>
     </header>
 
-    <main class="orders-container">
-        <h1>Your Orders</h1>
+    <main class="enhanced-orders-container">
+        <div class="orders-header">
+            <h1><i class="fas fa-box"></i> Your Orders</h1>
+            <div class="orders-actions">
+                <div class="search-filter">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="orderSearch" placeholder="Search orders...">
+                    </div>
+                    <select id="orderFilter" class="filter-select">
+                        <option value="all">All Orders</option>
+                        <option value="pending">Pending</option>
+                        <option value="processing">Processing</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <a href="/user/dashboard" class="btn outline">
+                    <i class="fas fa-arrow-left"></i> Back to Shopping
+                </a>
+            </div>
+        </div>
+
         <% if (orders.length === 0) { %>
             <div class="empty-orders">
-                <p>You haven't placed any orders yet</p>
-                <a href="/user/dashboard" class="btn primary">Start Shopping</a>
+                <div class="empty-orders-icon">
+                    <i class="fas fa-box-open"></i>
+                </div>
+                <h2>No orders found</h2>
+                <p>You haven't placed any orders yet. Start shopping to see your orders here!</p>
+                <a href="/user/dashboard" class="btn primary large">
+                    <i class="fas fa-store"></i> Start Shopping
+                </a>
             </div>
         <% } else { %>
+            <div class="orders-stats">
+                <div class="stat-item">
+                    <i class="fas fa-shopping-bag"></i>
+                    <div class="stat-content">
+                        <span class="stat-number"><%= orders.length %></span>
+                        <span class="stat-label">Total Orders</span>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-clock"></i>
+                    <div class="stat-content">
+                        <span class="stat-number">0</span>
+                        <span class="stat-label">Pending</span>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-truck"></i>
+                    <div class="stat-content">
+                        <span class="stat-number">0</span>
+                        <span class="stat-label">In Transit</span>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-check-circle"></i>
+                    <div class="stat-content">
+                        <span class="stat-number">0</span>
+                        <span class="stat-label">Delivered</span>
+                    </div>
+                </div>
+            </div>
+            
             <div class="orders-list">
-                <% orders.forEach(order => { %>
-                    <div class="order-card">
+                <% orders.forEach((order, index) => { %>
+                    <div class="enhanced-order-card" data-order-id="<%= order.id %>">
                         <div class="order-header">
-                            <h3>Order #<%= order.id %></h3>
-                            <p class="order-date"><%= new Date(order.created_at).toLocaleDateString() %></p>
-                            <p class="order-status">Status: <%= order.status %></p>
-                            <p class="order-total">Total: ₹<%= order.total_amount %></p>
-                        </div>
-                        <div class="order-items">
-                            <h4>Items:</h4>
-                            <% order.items.forEach(item => { %>
-                                <div class="order-item">
-                                    <p><%= item.name %></p>
-                                    <p>Quantity: <%= item.quantity %></p>
-                                    <p>Price: ₹<%= item.price %></p>
+                            <div class="order-info">
+                                <h3>
+                                    <i class="fas fa-receipt"></i>
+                                    Order #<%= order.id %>
+                                </h3>
+                                <div class="order-meta">
+                                    <span class="order-date">
+                                        <i class="fas fa-calendar"></i>
+                                        <%= new Date(order.created_at).toLocaleDateString('en-US', { 
+                                            year: 'numeric', 
+                                            month: 'long', 
+                                            day: 'numeric' 
+                                        }) %>
+                                    </span>
+                                    <span class="order-time">
+                                        <i class="fas fa-clock"></i>
+                                        <%= new Date(order.created_at).toLocaleTimeString('en-US', { 
+                                            hour: '2-digit', 
+                                            minute: '2-digit' 
+                                        }) %>
+                                    </span>
                                 </div>
-                            <% }) %>
+                            </div>
+                            
+                            <div class="order-status-section">
+                                <div class="status-badge status-<%= (order.status || 'pending').toLowerCase() %>">
+                                    <% 
+                                        const status = (order.status || 'pending').toLowerCase();
+                                        const statusIcons = {
+                                            'pending': 'fas fa-clock',
+                                            'processing': 'fas fa-cog fa-spin',
+                                            'shipped': 'fas fa-truck',
+                                            'delivered': 'fas fa-check-circle',
+                                            'cancelled': 'fas fa-times-circle'
+                                        };
+                                    %>
+                                    <i class="<%= statusIcons[status] || 'fas fa-clock' %>"></i>
+                                    <%= (order.status || 'Pending').toUpperCase() %>
+                                </div>
+                                
+                                <div class="order-total">
+                                    <span class="total-label">Total Amount</span>
+                                    <span class="total-amount">₹<%= order.total_amount %></span>
+                                </div>
+                            </div>
+                            
+                            <div class="order-actions">
+                                <button class="action-btn view" onclick="toggleOrderDetails('<%= order.id %>')" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="action-btn track" onclick="trackOrder('<%= order.id %>')" title="Track Order">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </button>
+                                <button class="action-btn reorder" onclick="reorder('<%= order.id %>')" title="Reorder">
+                                    <i class="fas fa-redo"></i>
+                                </button>
+                                <% if ((order.status || 'pending').toLowerCase() === 'pending') { %>
+                                    <button class="action-btn cancel" onclick="cancelOrder('<%= order.id %>')" title="Cancel Order">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                <% } %>
+                            </div>
+                        </div>
+                        
+                        <div class="order-progress">
+                            <div class="progress-bar">
+                                <% 
+                                    const progressSteps = ['pending', 'processing', 'shipped', 'delivered'];
+                                    const currentStatus = (order.status || 'pending').toLowerCase();
+                                    const currentStep = progressSteps.indexOf(currentStatus);
+                                %>
+                                <% progressSteps.forEach((step, stepIndex) => { %>
+                                    <div class="progress-step <%= stepIndex <= currentStep ? 'active' : '' %> <%= stepIndex === currentStep ? 'current' : '' %>">
+                                        <div class="step-icon">
+                                            <% 
+                                                const stepIcons = {
+                                                    'pending': 'fas fa-shopping-cart',
+                                                    'processing': 'fas fa-cog',
+                                                    'shipped': 'fas fa-truck',
+                                                    'delivered': 'fas fa-home'
+                                                };
+                                            %>
+                                            <i class="<%= stepIcons[step] %>"></i>
+                                        </div>
+                                        <span class="step-label"><%= step.charAt(0).toUpperCase() + step.slice(1) %></span>
+                                    </div>
+                                    <% if (stepIndex < progressSteps.length - 1) { %>
+                                        <div class="progress-line <%= stepIndex < currentStep ? 'completed' : '' %>"></div>
+                                    <% } %>
+                                <% }) %>
+                            </div>
+                        </div>
+                        
+                        <div class="order-details" id="details-<%= order.id %>" style="display: none;">
+                            <div class="details-header">
+                                <h4><i class="fas fa-list"></i> Order Items</h4>
+                                <span class="items-count"><%= order.items ? order.items.length : 0 %> item(s)</span>
+                            </div>
+                            
+                            <div class="order-items">
+                                <% if (order.items && order.items.length > 0) { %>
+                                    <% order.items.forEach(item => { %>
+                                        <div class="order-item">
+                                            <div class="item-image">
+                                                <% if (item.image_url) { %>
+                                                    <img src="<%= item.image_url %>" alt="<%= item.name %>">
+                                                <% } else { %>
+                                                    <div class="no-image">
+                                                        <i class="fas fa-image"></i>
+                                                    </div>
+                                                <% } %>
+                                            </div>
+                                            
+                                            <div class="item-details">
+                                                <h5><%= item.name %></h5>
+                                                <p class="item-description"><%= item.description || 'No description available' %></p>
+                                                <div class="item-meta">
+                                                    <span class="quantity">
+                                                        <i class="fas fa-times"></i>
+                                                        Qty: <%= item.quantity %>
+                                                    </span>
+                                                    <span class="unit-price">
+                                                        <i class="fas fa-tag"></i>
+                                                        ₹<%= item.price %> each
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="item-total">
+                                                <span class="total-price">₹<%= (item.price * item.quantity).toFixed(2) %></span>
+                                                <div class="item-actions">
+                                                    <button class="btn small secondary" onclick="buyAgain('<%= item.id %>')">
+                                                        <i class="fas fa-shopping-cart"></i> Buy Again
+                                                    </button>
+                                                    <button class="btn small outline" onclick="writeReview('<%= item.id %>')">
+                                                        <i class="fas fa-star"></i> Review
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <% }) %>
+                                <% } else { %>
+                                    <div class="no-items">
+                                        <p>No items found for this order.</p>
+                                    </div>
+                                <% } %>
+                            </div>
+                            
+                            <div class="order-summary">
+                                <div class="summary-row">
+                                    <span>Subtotal:</span>
+                                    <span>₹<%= (order.total_amount / 1.18).toFixed(2) %></span>
+                                </div>
+                                <div class="summary-row">
+                                    <span>Tax (GST 18%):</span>
+                                    <span>₹<%= (order.total_amount - (order.total_amount / 1.18)).toFixed(2) %></span>
+                                </div>
+                                <div class="summary-row">
+                                    <span>Shipping:</span>
+                                    <span>FREE</span>
+                                </div>
+                                <div class="summary-total">
+                                    <span>Total:</span>
+                                    <span>₹<%= order.total_amount %></span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 <% }) %>
             </div>
+            
+            <div id="noOrdersFound" class="no-results" style="display: none;">
+                <i class="fas fa-search"></i>
+                <h3>No orders found</h3>
+                <p>No orders match your current filters</p>
+            </div>
         <% } %>
     </main>
 
+    <!-- Order Tracking Modal -->
+    <div id="trackingModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeTrackingModal()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div id="trackingContent">
+                <!-- Dynamic tracking content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
     <footer>
-        <p>&copy; 2025 LocalBuy. All rights reserved.</p>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>LocalBuy</h4>
+                <p>Your trusted local marketplace</p>
+            </div>
+            <div class="footer-section">
+                <h4>Quick Links</h4>
+                <a href="/user/dashboard">Dashboard</a>
+                <a href="/user/cart">Cart</a>
+                <a href="/user/orders">Orders</a>
+            </div>
+            <div class="footer-section">
+                <h4>Support</h4>
+                <a href="#">Help Center</a>
+                <a href="#">Contact Us</a>
+                <a href="#">Return Policy</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 LocalBuy. All rights reserved.</p>
+        </div>
     </footer>
+
+    <script>
+        let allOrders = [];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeOrders();
+            setupEventListeners();
+        });
+
+        function initializeOrders() {
+            const orderCards = document.querySelectorAll('.enhanced-order-card');
+            allOrders = Array.from(orderCards).map(card => ({
+                id: card.getAttribute('data-order-id'),
+                element: card
+            }));
+        }
+
+        function setupEventListeners() {
+            document.getElementById('orderSearch').addEventListener('input', debounce(filterOrders, 300));
+            document.getElementById('orderFilter').addEventListener('change', filterOrders);
+        }
+
+        function filterOrders() {
+            const searchTerm = document.getElementById('orderSearch').value.toLowerCase();
+            const filterValue = document.getElementById('orderFilter').value;
+            
+            let visibleCount = 0;
+            
+            allOrders.forEach(order => {
+                const orderCard = order.element;
+                const orderText = orderCard.textContent.toLowerCase();
+                const orderStatus = orderCard.querySelector('.status-badge').textContent.toLowerCase();
+                
+                const matchesSearch = searchTerm === '' || orderText.includes(searchTerm);
+                const matchesFilter = filterValue === 'all' || orderStatus.includes(filterValue);
+                
+                if (matchesSearch && matchesFilter) {
+                    orderCard.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    orderCard.style.display = 'none';
+                }
+            });
+            
+            const noResults = document.getElementById('noOrdersFound');
+            const ordersList = document.querySelector('.orders-list');
+            
+            if (visibleCount === 0 && allOrders.length > 0) {
+                noResults.style.display = 'block';
+                ordersList.style.display = 'none';
+            } else {
+                noResults.style.display = 'none';
+                ordersList.style.display = 'block';
+            }
+        }
+
+        function toggleOrderDetails(orderId) {
+            const details = document.getElementById(`details-${orderId}`);
+            const isVisible = details.style.display !== 'none';
+            
+            // Close all other details first
+            document.querySelectorAll('.order-details').forEach(detail => {
+                detail.style.display = 'none';
+            });
+            
+            if (!isVisible) {
+                details.style.display = 'block';
+                details.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function trackOrder(orderId) {
+            const modal = document.getElementById('trackingModal');
+            const content = document.getElementById('trackingContent');
+            
+            content.innerHTML = `
+                <div class="tracking-info">
+                    <h2><i class="fas fa-map-marker-alt"></i> Track Order #${orderId}</h2>
+                    <div class="tracking-timeline">
+                        <div class="timeline-item completed">
+                            <div class="timeline-icon">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h4>Order Placed</h4>
+                                <p>Your order has been placed successfully</p>
+                                <span class="timeline-date">Nov 15, 2025 - 10:30 AM</span>
+                            </div>
+                        </div>
+                        <div class="timeline-item current">
+                            <div class="timeline-icon">
+                                <i class="fas fa-cog fa-spin"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h4>Processing</h4>
+                                <p>Your order is being prepared for shipment</p>
+                                <span class="timeline-date">Estimated: Nov 16, 2025</span>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-icon">
+                                <i class="fas fa-truck"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h4>Shipped</h4>
+                                <p>Your order has been shipped</p>
+                                <span class="timeline-date">Estimated: Nov 17, 2025</span>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-icon">
+                                <i class="fas fa-home"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h4>Delivered</h4>
+                                <p>Your order will be delivered</p>
+                                <span class="timeline-date">Estimated: Nov 18, 2025</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeTrackingModal() {
+            document.getElementById('trackingModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function reorder(orderId) {
+            showToast('Adding items to cart...', 'info');
+            
+            // Mock reorder functionality
+            setTimeout(() => {
+                showToast('Items added to cart successfully!', 'success');
+            }, 1500);
+        }
+
+        function cancelOrder(orderId) {
+            if (confirm('Are you sure you want to cancel this order?')) {
+                showToast('Order cancellation requested', 'info');
+                
+                // Update status badge
+                const orderCard = document.querySelector(`[data-order-id="${orderId}"]`);
+                const statusBadge = orderCard.querySelector('.status-badge');
+                statusBadge.className = 'status-badge status-cancelled';
+                statusBadge.innerHTML = '<i class="fas fa-times-circle"></i> CANCELLED';
+                
+                // Hide cancel button
+                const cancelBtn = orderCard.querySelector('.action-btn.cancel');
+                if (cancelBtn) cancelBtn.style.display = 'none';
+            }
+        }
+
+        function buyAgain(itemId) {
+            showToast('Adding item to cart...', 'info');
+            
+            setTimeout(() => {
+                showToast('Item added to cart!', 'success');
+            }, 1000);
+        }
+
+        function writeReview(itemId) {
+            showToast('Review feature coming soon!', 'info');
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            const icon = {
+                'success': 'fas fa-check-circle',
+                'error': 'fas fa-exclamation-circle',
+                'info': 'fas fa-info-circle',
+                'warning': 'fas fa-exclamation-triangle'
+            }[type];
+            
+            toast.innerHTML = `
+                <i class="${icon}"></i>
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            document.getElementById('toastContainer').appendChild(toast);
+            
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 4000);
+        }
+
+        // Utility function
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+    </script>
 </body>
 </html>

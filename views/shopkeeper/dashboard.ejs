@@ -5,46 +5,736 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shopkeeper Dashboard - LocalBuy</title>
     <link rel="stylesheet" href="/css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+
     <header>
         <nav>
-            <div class="logo">LocalBuy</div>
+            <div class="logo">
+                <i class="fas fa-store"></i>
+                LocalBuy
+                <span class="admin-badge">Admin</span>
+            </div>
             <div class="nav-links">
-                <a href="/shopkeeper/add-product">Add Product</a>
-                <a href="/auth/logout">Logout</a>
+                <a href="/shopkeeper/add-product" class="nav-link primary-action">
+                    <i class="fas fa-plus"></i>
+                    <span>Add Product</span>
+                </a>
+                <div class="nav-dropdown">
+                    <button class="nav-link dropdown-toggle">
+                        <i class="fas fa-user-circle"></i>
+                        <span>Account</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="dropdown-menu">
+                       
+                        <div class="dropdown-divider"></div>
+                        <a href="/auth/logout" class="dropdown-item logout">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </div>
+                </div>
             </div>
         </nav>
     </header>
 
-    <main class="dashboard">
-        <h1>Your Products</h1>
-        <div class="product-grid">
-            <% products.forEach(product => { %>
-                <div class="product-card">
-                    <% if (product.image_url) { %>
-                        <img src="<%= product.image_url %>" alt="<%= product.name %>">
-                    <% } else { %>
-                        <div class="no-image">No Image</div>
-                    <% } %>
-                    <div class="product-info">
-                        <h3><%= product.name %></h3>
-                        <p><%= product.description %></p>
-                        <p class="price">₹<%= product.price %></p>
-                        <div class="product-actions">
-                            <a href="/shopkeeper/edit-product/<%= product.id %>" class="btn secondary">Edit</a>
-                            <form action="/shopkeeper/delete-product/<%= product.id %>" method="POST" class="inline">
-                                <button type="submit" class="btn danger" onclick="return confirm('Are you sure?')">Delete</button>
-                            </form>
-                        </div>
+    <main class="admin-dashboard">
+        <div class="dashboard-header">
+            <div class="welcome-section">
+                <h1><i class="fas fa-tachometer-alt"></i> Shopkeeper Dashboard</h1>
+                <p class="dashboard-subtitle">Manage your products and track your business performance</p>
+            </div>
+            
+            <div class="quick-actions">
+                <button class="quick-action-btn" onclick="openAddProductModal()">
+                    <i class="fas fa-plus"></i>
+                    <span>Quick Add</span>
+                </button>
+                <button class="quick-action-btn" onclick="exportData()">
+                    <i class="fas fa-download"></i>
+                    <span>Export</span>
+                </button>
+                <button class="quick-action-btn" onclick="showAnalytics()">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Analytics</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="analytics-overview">
+            <div class="stat-cards">
+                <div class="stat-card revenue">
+                    <div class="stat-icon">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalRevenue">₹0</h3>
+                        <p>Total Revenue</p>
+                        <span class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i> +12.5%
+                        </span>
                     </div>
                 </div>
-            <% }) %>
+                
+                <div class="stat-card products">
+                    <div class="stat-icon">
+                        <i class="fas fa-box"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalProducts"><%= products.length %></h3>
+                        <p>Total Products</p>
+                        <span class="stat-change neutral">
+                            <i class="fas fa-minus"></i> 0%
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="stat-card orders">
+                    <div class="stat-icon">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalOrders">0</h3>
+                        <p>Total Orders</p>
+                        <span class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i> +8.3%
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="stat-card customers">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalCustomers">0</h3>
+                        <p>Customers</p>
+                        <span class="stat-change positive">
+                            <i class="fas fa-arrow-up"></i> +15.2%
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="charts-container">
+                <div class="chart-card">
+                    <h3><i class="fas fa-chart-area"></i> Sales Trend</h3>
+                    <canvas id="salesChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3><i class="fas fa-chart-pie"></i> Product Categories</h3>
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="products-management">
+            <div class="section-header">
+                <h2><i class="fas fa-boxes"></i> Product Management</h2>
+                <div class="header-actions">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="productSearch" placeholder="Search products...">
+                    </div>
+                    <select id="productFilter" class="filter-select">
+                        <option value="all">All Products</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="low-stock">Low Stock</option>
+                    </select>
+                    <button class="btn primary" onclick="window.location.href='/shopkeeper/add-product'">
+                        <i class="fas fa-plus"></i> Add Product
+                    </button>
+                </div>
+            </div>
+            
+            <div class="products-table-container">
+                <table class="products-table" id="productsTable">
+                    <thead>
+                        <tr>
+                            <th>
+                                <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                            </th>
+                            <th>Product</th>
+                            <th>Price</th>
+                            <th>Status</th>
+                            <th>Stock</th>
+                            <th>Sales</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% products.forEach((product, index) => { %>
+                            <tr class="product-row" data-product-id="<%= product.id %>">
+                                <td>
+                                    <input type="checkbox" class="product-checkbox" value="<%= product.id %>">
+                                </td>
+                                <td class="product-cell">
+                                    <div class="product-info">
+                                        <div class="product-image">
+                                            <% if (product.image_url) { %>
+                                                <img src="<%= product.image_url %>" alt="<%= product.name %>">
+                                            <% } else { %>
+                                                <div class="no-image">
+                                                    <i class="fas fa-image"></i>
+                                                </div>
+                                            <% } %>
+                                        </div>
+                                        <div class="product-details">
+                                            <h4><%= product.name %></h4>
+                                            <p><%= product.description.substring(0, 50) %>...</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="price-cell">
+                                    <span class="price">₹<%= product.price %></span>
+                                </td>
+                                <td class="status-cell">
+                                    <span class="status-badge active">Active</span>
+                                </td>
+                                <td class="stock-cell">
+                                    <span class="stock-count">15</span>
+                                </td>
+                                <td class="sales-cell">
+                                    <span class="sales-count">0</span>
+                                </td>
+                                <td class="actions-cell">
+                                    <div class="action-buttons">
+                                        <button class="action-btn edit" onclick="editProduct(<%= product.id %>)" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="action-btn view" onclick="viewProduct(<%= product.id %>)" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="action-btn duplicate" onclick="duplicateProduct(<%= product.id %>)" title="Duplicate">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                        <button class="action-btn delete" onclick="deleteProduct(<%= product.id %>, '<%= product.name %>')" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+                
+                <div id="noProductsFound" class="no-results" style="display: none;">
+                    <i class="fas fa-box-open"></i>
+                    <h3>No products found</h3>
+                    <p>Try adjusting your search or add your first product</p>
+                    <button class="btn primary" onclick="window.location.href='/shopkeeper/add-product'">
+                        <i class="fas fa-plus"></i> Add Your First Product
+                    </button>
+                </div>
+            </div>
+            
+            <div class="bulk-actions" id="bulkActions" style="display: none;">
+                <span class="selected-count">0 items selected</span>
+                <button class="btn secondary" onclick="bulkActivate()">Activate</button>
+                <button class="btn secondary" onclick="bulkDeactivate()">Deactivate</button>
+                <button class="btn danger" onclick="bulkDelete()">Delete</button>
+            </div>
         </div>
     </main>
 
+    <!-- Product View Modal -->
+    <div id="productModal" class="modal">
+        <div class="modal-content large">
+            <button class="modal-close" onclick="closeProductModal()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div id="productModalContent">
+                <!-- Dynamic content will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content small">
+            <div class="delete-confirmation">
+                <i class="fas fa-exclamation-triangle"></i>
+                <h3>Delete Product</h3>
+                <p>Are you sure you want to delete "<span id="deleteProductName"></span>"?</p>
+                <p class="warning-text">This action cannot be undone.</p>
+                <div class="modal-actions">
+                    <button class="btn secondary" onclick="closeDeleteModal()">Cancel</button>
+                    <button class="btn danger" id="confirmDelete">Delete Product</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
     <footer>
-        <p>&copy; 2025 LocalBuy. All rights reserved.</p>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>LocalBuy Admin</h4>
+                <p>Manage your business with ease</p>
+            </div>
+            <div class="footer-section">
+                <h4>Quick Links</h4>
+                <a href="/shopkeeper/dashboard">Dashboard</a>
+                <a href="/shopkeeper/add-product">Add Product</a>
+            </div>
+            <div class="footer-section">
+                <h4>Support</h4>
+                <a href="#">Help Center</a>
+                <a href="#">Contact Support</a>
+                <a href="#">Documentation</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 LocalBuy. All rights reserved.</p>
+        </div>
     </footer>
+
+    <script>
+        // Global variables
+        let allProducts = [];
+        let selectedProducts = [];
+        let salesChart, categoryChart;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDashboard();
+            setupEventListeners();
+            initializeCharts();
+            hideLoadingOverlay();
+        });
+
+        function initializeDashboard() {
+            // Extract product data from table
+            const productRows = document.querySelectorAll('.product-row');
+            allProducts = Array.from(productRows).map(row => {
+                return {
+                    id: row.getAttribute('data-product-id'),
+                    element: row
+                };
+            });
+            
+            // Calculate and update statistics
+            updateStatistics();
+            
+            // Setup dropdown functionality
+            setupDropdowns();
+        }
+
+        function setupEventListeners() {
+            // Search functionality
+            document.getElementById('productSearch').addEventListener('input', debounce(filterProducts, 300));
+            
+            // Filter functionality
+            document.getElementById('productFilter').addEventListener('change', filterProducts);
+            
+            // Checkbox functionality
+            document.getElementById('selectAll').addEventListener('change', toggleSelectAll);
+            document.querySelectorAll('.product-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', updateSelectedProducts);
+            });
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', handleKeyboardShortcuts);
+        }
+
+        function setupDropdowns() {
+            const dropdownToggle = document.querySelector('.dropdown-toggle');
+            const dropdownMenu = document.querySelector('.dropdown-menu');
+            
+            dropdownToggle.addEventListener('click', function(e) {
+                e.stopPropagation();
+                dropdownMenu.classList.toggle('show');
+            });
+            
+            document.addEventListener('click', function() {
+                dropdownMenu.classList.remove('show');
+            });
+        }
+
+        function initializeCharts() {
+            // Sales trend chart
+            const salesCtx = document.getElementById('salesChart').getContext('2d');
+            salesChart = new Chart(salesCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Sales (₹)',
+                        data: [1200, 1900, 3000, 2500, 2200, 3000],
+                        borderColor: '#4a90e2',
+                        backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            // Category chart
+            const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+            categoryChart = new Chart(categoryCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Electronics', 'Clothing', 'Food', 'Others'],
+                    datasets: [{
+                        data: [35, 25, 20, 20],
+                        backgroundColor: [
+                            '#4a90e2',
+                            '#5c6ac4',
+                            '#00c853',
+                            '#ff6b35'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function filterProducts() {
+            const searchTerm = document.getElementById('productSearch').value.toLowerCase();
+            const filterValue = document.getElementById('productFilter').value;
+            
+            let visibleCount = 0;
+            
+            allProducts.forEach(product => {
+                const row = product.element;
+                const productName = row.querySelector('.product-details h4').textContent.toLowerCase();
+                const productDesc = row.querySelector('.product-details p').textContent.toLowerCase();
+                
+                const matchesSearch = searchTerm === '' || 
+                                    productName.includes(searchTerm) || 
+                                    productDesc.includes(searchTerm);
+                
+                let matchesFilter = true;
+                if (filterValue === 'active') {
+                    matchesFilter = row.querySelector('.status-badge').classList.contains('active');
+                } else if (filterValue === 'inactive') {
+                    matchesFilter = !row.querySelector('.status-badge').classList.contains('active');
+                } else if (filterValue === 'low-stock') {
+                    const stock = parseInt(row.querySelector('.stock-count').textContent);
+                    matchesFilter = stock < 5;
+                }
+                
+                if (matchesSearch && matchesFilter) {
+                    row.style.display = 'table-row';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            // Show/hide no results message
+            const noResults = document.getElementById('noProductsFound');
+            const table = document.getElementById('productsTable');
+            
+            if (visibleCount === 0) {
+                table.style.display = 'none';
+                noResults.style.display = 'block';
+            } else {
+                table.style.display = 'table';
+                noResults.style.display = 'none';
+            }
+        }
+
+        function updateStatistics() {
+            // Calculate total revenue (mock data)
+            const totalRevenue = allProducts.length * 1500; // Average revenue per product
+            document.getElementById('totalRevenue').textContent = `₹${totalRevenue.toLocaleString()}`;
+            
+            // Update product count
+            document.getElementById('totalProducts').textContent = allProducts.length;
+            
+            // Mock data for orders and customers
+            document.getElementById('totalOrders').textContent = Math.floor(allProducts.length * 2.5);
+            document.getElementById('totalCustomers').textContent = Math.floor(allProducts.length * 1.8);
+        }
+
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.product-checkbox');
+            
+            checkboxes.forEach(checkbox => {
+                if (checkbox.closest('.product-row').style.display !== 'none') {
+                    checkbox.checked = selectAll.checked;
+                }
+            });
+            
+            updateSelectedProducts();
+        }
+
+        function updateSelectedProducts() {
+            const checkboxes = document.querySelectorAll('.product-checkbox:checked');
+            selectedProducts = Array.from(checkboxes)
+                .filter(cb => cb.closest('.product-row').style.display !== 'none')
+                .map(cb => cb.value);
+            
+            const bulkActions = document.getElementById('bulkActions');
+            const selectedCount = bulkActions.querySelector('.selected-count');
+            
+            if (selectedProducts.length > 0) {
+                bulkActions.style.display = 'flex';
+                selectedCount.textContent = `${selectedProducts.length} items selected`;
+            } else {
+                bulkActions.style.display = 'none';
+            }
+        }
+
+        function editProduct(productId) {
+            window.location.href = `/shopkeeper/edit-product/${productId}`;
+        }
+
+        function viewProduct(productId) {
+            // Mock product data - in real app, fetch from server
+            const productRow = document.querySelector(`[data-product-id="${productId}"]`);
+            const productName = productRow.querySelector('.product-details h4').textContent;
+            const productDesc = productRow.querySelector('.product-details p').textContent;
+            const productPrice = productRow.querySelector('.price').textContent;
+            const productImage = productRow.querySelector('.product-image img');
+            
+            const modal = document.getElementById('productModal');
+            const content = document.getElementById('productModalContent');
+            
+            content.innerHTML = `
+                <div class="product-view">
+                    <div class="product-view-header">
+                        <h2>${productName}</h2>
+                        <div class="product-badges">
+                            <span class="badge success">Active</span>
+                            <span class="badge info">In Stock</span>
+                        </div>
+                    </div>
+                    
+                    <div class="product-view-content">
+                        <div class="product-view-image">
+                            ${productImage ? 
+                                `<img src="${productImage.src}" alt="${productName}">` : 
+                                `<div class="no-image-large"><i class="fas fa-image"></i><span>No Image</span></div>`
+                            }
+                        </div>
+                        
+                        <div class="product-view-details">
+                            <div class="detail-group">
+                                <label>Description:</label>
+                                <p>${productDesc}</p>
+                            </div>
+                            
+                            <div class="detail-group">
+                                <label>Price:</label>
+                                <p class="price-large">${productPrice}</p>
+                            </div>
+                            
+                            <div class="detail-group">
+                                <label>Stock:</label>
+                                <p>15 units available</p>
+                            </div>
+                            
+                            <div class="detail-group">
+                                <label>Sales:</label>
+                                <p>0 units sold</p>
+                            </div>
+                            
+                            <div class="product-actions">
+                                <button class="btn primary" onclick="editProduct(${productId})">
+                                    <i class="fas fa-edit"></i> Edit Product
+                                </button>
+                                <button class="btn secondary" onclick="duplicateProduct(${productId})">
+                                    <i class="fas fa-copy"></i> Duplicate
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function duplicateProduct(productId) {
+            showToast('Product duplication feature coming soon!', 'info');
+        }
+
+        function deleteProduct(productId, productName) {
+            const modal = document.getElementById('deleteModal');
+            const productNameSpan = document.getElementById('deleteProductName');
+            const confirmBtn = document.getElementById('confirmDelete');
+            
+            productNameSpan.textContent = productName;
+            
+            confirmBtn.onclick = function() {
+                // Create form and submit
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/shopkeeper/delete-product/${productId}`;
+                document.body.appendChild(form);
+                form.submit();
+            };
+            
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeProductModal() {
+            document.getElementById('productModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function bulkActivate() {
+            showToast(`Activated ${selectedProducts.length} products`, 'success');
+            selectedProducts.forEach(id => {
+                const row = document.querySelector(`[data-product-id="${id}"]`);
+                const badge = row.querySelector('.status-badge');
+                badge.textContent = 'Active';
+                badge.className = 'status-badge active';
+            });
+            clearSelection();
+        }
+
+        function bulkDeactivate() {
+            showToast(`Deactivated ${selectedProducts.length} products`, 'info');
+            selectedProducts.forEach(id => {
+                const row = document.querySelector(`[data-product-id="${id}"]`);
+                const badge = row.querySelector('.status-badge');
+                badge.textContent = 'Inactive';
+                badge.className = 'status-badge inactive';
+            });
+            clearSelection();
+        }
+
+        function bulkDelete() {
+            if (confirm(`Are you sure you want to delete ${selectedProducts.length} products? This cannot be undone.`)) {
+                showToast(`Deleted ${selectedProducts.length} products`, 'success');
+                selectedProducts.forEach(id => {
+                    const row = document.querySelector(`[data-product-id="${id}"]`);
+                    row.remove();
+                });
+                clearSelection();
+                updateStatistics();
+            }
+        }
+
+        function clearSelection() {
+            document.getElementById('selectAll').checked = false;
+            document.querySelectorAll('.product-checkbox').forEach(cb => cb.checked = false);
+            updateSelectedProducts();
+        }
+
+        function exportData() {
+            showToast('Exporting data...', 'info');
+            // Mock export functionality
+            setTimeout(() => {
+                showToast('Data exported successfully!', 'success');
+            }, 1500);
+        }
+
+        function showAnalytics() {
+            showToast('Analytics feature coming soon!', 'info');
+        }
+
+        function openAddProductModal() {
+            window.location.href = '/shopkeeper/add-product';
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            const icon = {
+                'success': 'fas fa-check-circle',
+                'error': 'fas fa-exclamation-circle',
+                'info': 'fas fa-info-circle',
+                'warning': 'fas fa-exclamation-triangle'
+            }[type];
+            
+            toast.innerHTML = `
+                <i class="${icon}"></i>
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            document.getElementById('toastContainer').appendChild(toast);
+            
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 4000);
+        }
+
+        function handleKeyboardShortcuts(e) {
+            // Ctrl/Cmd + N for new product
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                e.preventDefault();
+                window.location.href = '/shopkeeper/add-product';
+            }
+            
+            // Ctrl/Cmd + F to focus search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                document.getElementById('productSearch').focus();
+            }
+            
+            // Escape to close modals
+            if (e.key === 'Escape') {
+                closeProductModal();
+                closeDeleteModal();
+            }
+        }
+
+        function hideLoadingOverlay() {
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }, 500);
+        }
+
+        // Utility function
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+    </script>
 </body>
 </html>
