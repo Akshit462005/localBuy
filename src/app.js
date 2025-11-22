@@ -11,14 +11,30 @@ try {
     const RedisStore = require('connect-redis')(session);
     const { createClient } = require('redis');
     
-    const redisClient = createClient({
-        socket: {
-            host: process.env.REDIS_HOST || 'localhost',
-            port: process.env.REDIS_PORT || 6379
-        },
-        password: process.env.REDIS_PASSWORD || undefined,
-        database: process.env.REDIS_DB || 0
-    });
+    // Prefer a full REDIS_URL if provided (supports username/password and TLS)
+    const redisUrl = process.env.REDIS_URL;
+    let redisClient;
+    if (redisUrl) {
+        redisClient = createClient({ url: redisUrl });
+    } else if (process.env.REDIS_USERNAME) {
+        const username = process.env.REDIS_USERNAME;
+        const password = process.env.REDIS_PASSWORD || '';
+        const host = process.env.REDIS_HOST || 'localhost';
+        const port = process.env.REDIS_PORT || 6379;
+        const tls = process.env.REDIS_TLS === 'true';
+        const scheme = tls ? 'rediss' : 'redis';
+        const url = `${scheme}://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}`;
+        redisClient = createClient({ url });
+    } else {
+        redisClient = createClient({
+            socket: {
+                host: process.env.REDIS_HOST || 'localhost',
+                port: process.env.REDIS_PORT || 6379
+            },
+            password: process.env.REDIS_PASSWORD || undefined,
+            database: process.env.REDIS_DB || 0
+        });
+    }
 
     redisClient.on('error', (err) => {
         console.error('Redis Client Error:', err);

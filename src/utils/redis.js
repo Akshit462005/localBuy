@@ -2,12 +2,39 @@ const { createClient } = require('redis');
 
 class RedisCache {
     constructor() {
-        this.client = createClient({
-            host: process.env.REDIS_HOST || 'localhost',
-            port: process.env.REDIS_PORT || 6379,
-            password: process.env.REDIS_PASSWORD || undefined,
-            db: process.env.REDIS_DB || 0
-        });
+        // Prefer a single REDIS_URL if provided (supports username/password and TLS)
+        // Otherwise build options from individual env vars.
+        const redisUrl = process.env.REDIS_URL;
+        if (redisUrl) {
+            this.client = createClient({ url: redisUrl });
+        } else {
+            // If username is provided, construct a URL so ACL auth works reliably
+            const username = process.env.REDIS_USERNAME;
+            const password = process.env.REDIS_PASSWORD;
+            const host = process.env.REDIS_HOST || 'localhost';
+            const port = process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379;
+            const tls = process.env.REDIS_TLS === 'true';
+
+            if (username) {
+                const scheme = tls ? 'rediss' : 'redis';
+                // encode credentials
+                const userEnc = encodeURIComponent(username);
+                const passEnc = password ? encodeURIComponent(password) : '';
+                const url = `${scheme}://${userEnc}:${passEnc}@${host}:${port}`;
+                this.client = createClient({ url });
+            } else {
+                // socket options with password and DB index
+                this.client = createClient({
+                    socket: {
+                        host,
+                        port,
+                        tls: tls || undefined
+                    },
+                    password: password || undefined,
+                    database: process.env.REDIS_DB ? parseInt(process.env.REDIS_DB, 10) : 0
+                });
+            }
+        }
 
         this.client.on('error', (err) => {
             console.error('Redis Cache Client Error:', err);
