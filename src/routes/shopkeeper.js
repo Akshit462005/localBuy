@@ -55,6 +55,69 @@ router.get('/dashboard', auth, isShopkeeper, async (req, res) => {
     }
 });
 
+// Real-time metrics for dashboard (shopkeeper-specific)
+router.get('/dashboard/metrics', auth, isShopkeeper, async (req, res) => {
+    try {
+        const shopkeeperId = req.user.id;
+
+        // Total products for this shopkeeper
+        const productsPromise = pool.query(
+            'SELECT COUNT(*) AS total_products FROM products WHERE shopkeeper_id = $1',
+            [shopkeeperId]
+        );
+
+        // Total revenue from order_items for this shopkeeper's products
+        const revenuePromise = pool.query(
+            `SELECT COALESCE(SUM(oi.quantity * oi.price), 0) AS total_revenue
+             FROM order_items oi
+             JOIN products p ON oi.product_id = p.id
+             WHERE p.shopkeeper_id = $1`,
+            [shopkeeperId]
+        );
+
+        // Total orders that include this shopkeeper's products
+        const ordersPromise = pool.query(
+            `SELECT COUNT(DISTINCT oi.order_id) AS total_orders
+             FROM order_items oi
+             JOIN products p ON oi.product_id = p.id
+             WHERE p.shopkeeper_id = $1`,
+            [shopkeeperId]
+        );
+
+        // Total unique customers who ordered this shopkeeper's products
+        const customersPromise = pool.query(
+            `SELECT COUNT(DISTINCT o.user_id) AS total_customers
+             FROM order_items oi
+             JOIN products p ON oi.product_id = p.id
+             JOIN orders o ON oi.order_id = o.id
+             WHERE p.shopkeeper_id = $1`,
+            [shopkeeperId]
+        );
+
+        const [productsRes, revenueRes, ordersRes, customersRes] = await Promise.all([
+            productsPromise,
+            revenuePromise,
+            ordersPromise,
+            customersPromise
+        ]);
+
+        const totalProducts = parseInt(productsRes.rows[0].total_products, 10) || 0;
+        const totalRevenue = parseFloat(revenueRes.rows[0].total_revenue) || 0;
+        const totalOrders = parseInt(ordersRes.rows[0].total_orders, 10) || 0;
+        const totalCustomers = parseInt(customersRes.rows[0].total_customers, 10) || 0;
+
+        res.json({
+            totalProducts,
+            totalRevenue,
+            totalOrders,
+            totalCustomers
+        });
+    } catch (err) {
+        console.error('Error fetching dashboard metrics:', err);
+        res.status(500).json({ error: 'Failed to fetch metrics' });
+    }
+});
+
 // Add product page
 router.get('/add-product', auth, isShopkeeper, (req, res) => {
     res.render('shopkeeper/add-product');

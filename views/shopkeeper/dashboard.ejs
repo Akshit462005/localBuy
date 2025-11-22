@@ -305,10 +305,13 @@
 
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
-            initializeDashboard();
-            setupEventListeners();
-            initializeCharts();
-            hideLoadingOverlay();
+                initializeDashboard();
+                setupEventListeners();
+                initializeCharts();
+                hideLoadingOverlay();
+                // fetch metrics initially and then poll every 10s for real-time updates
+                fetchMetrics();
+                setInterval(fetchMetrics, 10000);
         });
 
         function initializeDashboard() {
@@ -321,11 +324,32 @@
                 };
             });
             
-            // Calculate and update statistics
+            // Calculate and update statistics (fallback) - live metrics will overwrite these
             updateStatistics();
             
             // Setup dropdown functionality
             setupDropdowns();
+        }
+
+        // Fetch real-time metrics from server
+        async function fetchMetrics() {
+            try {
+                const res = await fetch('/shopkeeper/dashboard/metrics', {
+                    credentials: 'same-origin'
+                });
+                if (!res.ok) throw new Error('Failed to fetch metrics');
+                const data = await res.json();
+
+                // Update DOM elements with live values
+                document.getElementById('totalProducts').textContent = data.totalProducts;
+                document.getElementById('totalOrders').textContent = data.totalOrders;
+                document.getElementById('totalCustomers').textContent = data.totalCustomers;
+                const formattedRevenue = Number(data.totalRevenue).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+                document.getElementById('totalRevenue').textContent = `₹${formattedRevenue}`;
+
+            } catch (err) {
+                console.error('Error fetching dashboard metrics:', err);
+            }
         }
 
         function setupEventListeners() {
