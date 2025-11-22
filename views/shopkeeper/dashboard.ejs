@@ -314,6 +314,47 @@
                 setInterval(fetchMetrics, 10000);
         });
 
+        // If redirected after delete, show success toast
+        (function showDeletedToastFromQuery() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('deleted') === '1') {
+                showToast('Product deleted successfully', 'success');
+                // remove query param from URL without reload
+                params.delete('deleted');
+                const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+                window.history.replaceState({}, '', newUrl);
+            }
+        })();
+
+            // UI: show cache info area
+            function showCacheInfoPanel(info) {
+                let panel = document.getElementById('cacheInfo');
+                if (!panel) {
+                    panel = document.createElement('div');
+                    panel.id = 'cacheInfo';
+                    panel.className = 'cache-info-card';
+                    panel.innerHTML = `<h4>Cache (Redis) Info</h4>
+                        <pre id="cacheContent">Loading...</pre>
+                        <button class="btn" id="refreshCacheBtn">Refresh Cache Info</button>`;
+                    document.querySelector('.analytics-overview').insertBefore(panel, document.querySelector('.charts-container'));
+                    document.getElementById('refreshCacheBtn').addEventListener('click', fetchCacheInfo);
+                }
+
+                const content = document.getElementById('cacheContent');
+                content.textContent = JSON.stringify(info, null, 2);
+            }
+
+            async function fetchCacheInfo() {
+                try {
+                    const res = await fetch('/shopkeeper/dashboard/metrics/cache', { credentials: 'same-origin' });
+                    if (!res.ok) throw new Error('Failed to fetch cache info');
+                    const data = await res.json();
+                    showCacheInfoPanel(data);
+                } catch (err) {
+                    console.error('Error fetching cache info:', err);
+                }
+            }
+
         function initializeDashboard() {
             // Extract product data from table
             const productRows = document.querySelectorAll('.product-row');

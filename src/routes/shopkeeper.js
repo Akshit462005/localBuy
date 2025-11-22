@@ -5,6 +5,9 @@ const multer = require('multer');
 const path = require('path');
 const { Pool } = require('pg');
 
+// Redis cache utility
+const redisCache = require('../utils/redis');
+
 const pool = new Pool({
     user: process.env.POSTGRES_USER,
     password: process.env.POSTGRES_PASSWORD,
@@ -60,6 +63,25 @@ router.get('/dashboard/metrics', auth, isShopkeeper, async (req, res) => {
     try {
         const shopkeeperId = req.user.id;
 
+        // ensure redis client is connected (best-effort)
+        try {
+            if (!redisCache.client.isOpen) await redisCache.connect();
+        } catch (e) {
+            console.warn('Redis cache not available, continuing without cache');
+        }
+
+        const cacheKey = `shopkeeper:${shopkeeperId}:dashboard_metrics`;
+
+        // Try cache first
+        try {
+            const cached = await redisCache.get(cacheKey);
+            if (cached) {
+                return res.json(Object.assign({ fromCache: true }, cached));
+            }
+        } catch (e) {
+            console.warn('Redis GET failed, continuing to fetch from DB');
+        }
+
         // Total products for this shopkeeper
         const productsPromise = pool.query(
             'SELECT COUNT(*) AS total_products FROM products WHERE shopkeeper_id = $1',
@@ -106,15 +128,47 @@ router.get('/dashboard/metrics', auth, isShopkeeper, async (req, res) => {
         const totalOrders = parseInt(ordersRes.rows[0].total_orders, 10) || 0;
         const totalCustomers = parseInt(customersRes.rows[0].total_customers, 10) || 0;
 
-        res.json({
-            totalProducts,
-            totalRevenue,
-            totalOrders,
-            totalCustomers
-        });
+        const payload = { totalProducts, totalRevenue, totalOrders, totalCustomers };
+
+        // store in cache (short TTL for near-real-time)
+        try {
+            await redisCache.set(cacheKey, payload, 10); // 10 seconds
+        } catch (e) {
+            console.warn('Redis SET failed:', e.message || e);
+        }
+
+        res.json(Object.assign({ fromCache: false }, payload));
     } catch (err) {
         console.error('Error fetching dashboard metrics:', err);
         res.status(500).json({ error: 'Failed to fetch metrics' });
+    }
+});
+
+// Endpoint to inspect cache key and value for this shopkeeper (for demo/debug)
+router.get('/dashboard/metrics/cache', auth, isShopkeeper, async (req, res) => {
+    try {
+        const shopkeeperId = req.user.id;
+        const cacheKey = `shopkeeper:${shopkeeperId}:dashboard_metrics`;
+
+        try {
+            if (!redisCache.client.isOpen) await redisCache.connect();
+        } catch (e) {
+            console.warn('Redis cache not available');
+        }
+
+        const exists = await redisCache.exists(cacheKey);
+        const value = exists ? await redisCache.get(cacheKey) : null;
+        let ttl = null;
+        try {
+            if (redisCache.client.isOpen) ttl = await redisCache.client.ttl(cacheKey);
+        } catch (e) {
+            // ignore
+        }
+
+        res.json({ key: cacheKey, exists, ttl, value });
+    } catch (err) {
+        console.error('Error fetching cache info:', err);
+        res.status(500).json({ error: 'Failed to fetch cache info' });
     }
 });
 
@@ -178,16 +232,62 @@ router.post('/edit-product/:id', auth, isShopkeeper, upload.single('image'), asy
 // Delete product
 router.post('/delete-product/:id', auth, isShopkeeper, async (req, res) => {
     try {
-        const result = await pool.query(
-            'DELETE FROM products WHERE id = $1 AND shopkeeper_id = $2 RETURNING *',
-            [req.params.id, req.user.id]
-        );
-        
-        if (result.rowCount === 0) {
-            return res.render('error', { message: 'Product not found or you do not have permission to delete it' });
+        const productId = parseInt(req.params.id, 10);
+        if (Number.isNaN(productId)) {
+            return res.render('error', { message: 'Invalid product id' });
         }
-        
-        res.redirect('/shopkeeper/dashboard');
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // Create backup table (if not exists) and copy referencing order_items
+            const backupTable = `backup_order_items_product_${productId}`;
+            // create table structure if not exists
+            await client.query(`CREATE TABLE IF NOT EXISTS ${backupTable} (LIKE order_items INCLUDING ALL)`);
+            // insert referencing rows into backup
+            const insertRes = await client.query(
+                `INSERT INTO ${backupTable} SELECT * FROM order_items WHERE product_id = $1 RETURNING *`,
+                [productId]
+            );
+
+            // delete referencing order_items
+            const delOrderItemsRes = await client.query(
+                'DELETE FROM order_items WHERE product_id = $1',
+                [productId]
+            );
+
+            // delete product (restrict to shopkeeper)
+            const delProductRes = await client.query(
+                'DELETE FROM products WHERE id = $1 AND shopkeeper_id = $2 RETURNING *',
+                [productId, req.user.id]
+            );
+
+            if (delProductRes.rowCount === 0) {
+                await client.query('ROLLBACK');
+                return res.render('error', { message: 'Product not found or you do not have permission to delete it' });
+            }
+
+            await client.query('COMMIT');
+
+            // Invalidate cache for shopkeeper dashboard metrics
+            try {
+                const cacheKey = `shopkeeper:${req.user.id}:dashboard_metrics`;
+                if (redisCache && redisCache.client && redisCache.client.isOpen) {
+                    await redisCache.del(cacheKey);
+                }
+            } catch (e) {
+                console.warn('Failed to invalidate redis cache after product delete:', e.message || e);
+            }
+
+            // Redirect to dashboard with success flag
+            return res.redirect('/shopkeeper/dashboard?deleted=1');
+        } catch (txErr) {
+            await client.query('ROLLBACK');
+            throw txErr;
+        } finally {
+            client.release();
+        }
     } catch (err) {
         console.error('Error deleting product:', err);
         res.render('error', { message: 'Error deleting product: ' + err.message });
