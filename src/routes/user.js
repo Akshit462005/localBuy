@@ -11,17 +11,29 @@ const pool = new Pool({
     database: process.env.POSTGRES_DB
 });
 
-// User dashboard - Show all products
+// User dashboard - Show all products with cache support
 router.get('/dashboard', auth, isUser, async (req, res) => {
     try {
         const result = await pool.query('SELECT p.*, u.username as shopkeeper_name FROM products p JOIN users u ON p.shopkeeper_id = u.id');
-        res.render('user/dashboard', { products: result.rows });
+        
+        // Check if user wants cached version
+        const useCached = req.query.cached === 'true';
+        const templateName = useCached ? 'user/dashboard-cached' : 'user/dashboard';
+        
+        const viewData = {
+            products: result.rows,
+            user: req.user,
+            cached: useCached,
+            timestamp: new Date().toISOString()
+        };
+        
+        res.render(templateName, viewData);
     } catch (err) {
         res.render('error', { message: 'Error fetching products' });
     }
 });
 
-// Add to cart
+// Add to cart with API support
 router.post('/add-to-cart', auth, isUser, async (req, res) => {
     try {
         const { productId } = req.body;
@@ -31,6 +43,13 @@ router.post('/add-to-cart', auth, isUser, async (req, res) => {
         
         const result = await pool.query('SELECT * FROM products WHERE id = $1', [productId]);
         const product = result.rows[0];
+        
+        if (!product) {
+            if (req.headers['content-type']?.includes('application/json')) {
+                return res.status(404).json({ error: 'Product not found' });
+            }
+            return res.render('error', { message: 'Product not found' });
+        }
         
         const cartItem = req.session.cart.find(item => item.id === product.id);
         if (cartItem) {
@@ -44,17 +63,58 @@ router.post('/add-to-cart', auth, isUser, async (req, res) => {
             });
         }
         
+        // API response for cache integration
+        if (req.headers['content-type']?.includes('application/json') || req.query.format === 'json') {
+            const cart = req.session.cart || [];
+            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+            
+            return res.json({
+                success: true,
+                message: 'Product added to cart',
+                cart: {
+                    items: cart,
+                    total: total,
+                    count: count
+                }
+            });
+        }
+        
         res.redirect('/user/cart');
     } catch (err) {
+        if (req.headers['content-type']?.includes('application/json')) {
+            return res.status(500).json({ error: 'Error adding to cart' });
+        }
         res.render('error', { message: 'Error adding to cart' });
     }
 });
 
-// View cart
+// View cart with cache support
 router.get('/cart', auth, isUser, (req, res) => {
     const cart = req.session.cart || [];
     const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    res.render('user/cart', { cart, total });
+    const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+    
+    // API response for cache integration
+    if (req.headers.accept?.includes('application/json') || req.query.format === 'json') {
+        return res.json({
+            success: true,
+            cart: {
+                items: cart,
+                total: total,
+                count: count
+            }
+        });
+    }
+    
+    const viewData = {
+        cart,
+        total,
+        count,
+        user: req.user
+    };
+    
+    res.render('user/cart', viewData);
 });
 
 // Update cart

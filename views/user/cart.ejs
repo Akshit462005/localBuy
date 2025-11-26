@@ -227,7 +227,17 @@
         </div>
     </footer>
 
+    <!-- Cache System Scripts -->
+    <script src="/js/cache.js"></script>
+    <script src="/js/cart-manager.js"></script>
+    <script src="/js/session-manager.js"></script>
+    
     <script>
+        // Initialize cache system
+        window.cache = new BrowserCache();
+        window.cartManager = new CartManager();
+        window.userSessionManager = new UserSessionManager();
+
         let cartData = {
             items: [],
             total: <%= total || 0 %>
@@ -236,6 +246,19 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializeCart();
             setupEventListeners();
+            syncWithCache();
+            
+            // Set user data if available
+            <% if (user) { %>
+            window.userSessionManager.setUserData({
+                id: '<%= user.id %>',
+                name: '<%= user.name %>',
+                email: '<%= user.email %>',
+                role: '<%= user.role %>'
+            });
+            <% } %>
+            
+            console.log('✅ Cart with caching initialized');
         });
 
         function initializeCart() {
@@ -247,6 +270,31 @@
                 quantity: parseInt(item.querySelector('input[type="number"]').value),
                 element: item
             }));
+        }
+
+        function syncWithCache() {
+            // Sync current cart with cache
+            const currentCart = {
+                items: cartData.items.map(item => ({
+                    id: item.id,
+                    price: item.price,
+                    quantity: item.quantity,
+                    timestamp: Date.now()
+                })),
+                total: cartData.total,
+                lastUpdated: Date.now()
+            };
+            
+            window.cache.set('server_cart', currentCart, 60); // Cache for 1 hour
+            
+            // Sync with cart manager
+            cartData.items.forEach(item => {
+                window.cartManager.addItem({
+                    id: item.id,
+                    price: item.price,
+                    quantity: item.quantity
+                });
+            });
         }
 
         function setupEventListeners() {

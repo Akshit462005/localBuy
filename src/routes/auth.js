@@ -93,6 +93,23 @@ router.post('/login', async (req, res) => {
         );
 
         req.session.token = token;
+        req.session.user = {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            loginTime: new Date().toISOString()
+        };
+
+        // API response for cache integration
+        if (req.headers['content-type']?.includes('application/json') || req.query.format === 'json') {
+            return res.json({
+                success: true,
+                message: 'Login successful',
+                user: req.session.user,
+                redirectUrl: user.role === 'shopkeeper' ? '/shopkeeper/dashboard' : '/user/dashboard'
+            });
+        }
 
         if (user.role === 'shopkeeper') {
             res.redirect('/shopkeeper/dashboard');
@@ -104,10 +121,24 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// Logout
+// Logout with cache cleanup
 router.get('/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect('/');
+    // API response for cache integration
+    if (req.headers.accept?.includes('application/json') || req.query.format === 'json') {
+        req.session.destroy((err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Logout failed' });
+            }
+            res.json({
+                success: true,
+                message: 'Logout successful',
+                redirectUrl: '/'
+            });
+        });
+    } else {
+        req.session.destroy();
+        res.redirect('/');
+    }
 });
 
 module.exports = router;

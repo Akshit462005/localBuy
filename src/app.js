@@ -104,6 +104,17 @@ app.use(session(sessionConfig));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../views'));
 
+// Add cache middleware for API responses
+app.use('/api', (req, res, next) => {
+    // Add cache headers for API responses
+    res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+    });
+    next();
+});
+
 // Routes
 const authRoutes = require('./routes/auth');
 const shopkeeperRoutes = require('./routes/shopkeeper');
@@ -113,9 +124,17 @@ app.use('/auth', authRoutes);
 app.use('/shopkeeper', shopkeeperRoutes);
 app.use('/user', userRoutes);
 
-// Home route
+// API routes for cache integration
+app.use('/api', require('./routes/api'));
+
+// Home route with cache support
 app.get('/', (req, res) => {
-    res.render('home');
+    const cacheData = {
+        user: req.session.user || null,
+        timestamp: new Date().toISOString(),
+        theme: req.session.theme || 'light'
+    };
+    res.render('home', cacheData);
 });
 
 // Check database connection

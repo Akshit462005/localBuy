@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalBuy - <%= title || 'Home' %></title>
+    
+    <!-- Cache Styles -->
+    <link rel="stylesheet" href="/css/cache.css">
+    
+    <!-- Your existing styles -->
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- Navigation with cart indicator -->
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="/" class="logo">LocalBuy</a>
+            
+            <!-- Search with caching -->
+            <form class="search-form" action="/search" method="GET">
+                <input type="search" name="q" placeholder="Search products..." data-autosave="search">
+            </form>
+            
+            <!-- Cart with badge -->
+            <div class="nav-actions">
+                <a href="/cart" class="cart-link">
+                    Cart
+                    <span class="cart-badge" id="cart-badge">0</span>
+                </a>
+                
+                <% if (user) { %>
+                    <span class="user-greeting">Hello, <%= user.name %></span>
+                    <a href="/logout">Logout</a>
+                <% } else { %>
+                    <a href="/login">Login</a>
+                    <a href="/register">Register</a>
+                <% } %>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="main-content">
+        <%- body %>
+    </main>
+
+    <!-- Notifications container -->
+    <div id="notification-container"></div>
+
+    <!-- Cache JavaScript files -->
+    <script src="/js/cache.js"></script>
+    <script src="/js/cart-manager.js"></script>
+    <script src="/js/session-manager.js"></script>
+    <script src="/js/cache-integration.js"></script>
+
+    <!-- Initialize caching system -->
+    <script>
+        // Initialize global cache instances
+        window.cache = new BrowserCache();
+        window.cartManager = new CartManager();
+        window.userSessionManager = new UserSessionManager();
+
+        // Set current user data
+        <% if (user) { %>
+        window.userSessionManager.setUserData({
+            id: '<%= user.id %>',
+            name: '<%= user.name %>',
+            email: '<%= user.email %>',
+            role: '<%= user.role %>',
+            loginTime: new Date().toISOString()
+        });
+        <% } %>
+
+        // Apply saved theme
+        window.userSessionManager.applyTheme();
+
+        console.log('✅ LocalBuy Cache System Ready');
+    </script>
+
+    <!-- Page-specific scripts -->
+    <%- defineContent('scripts') %>
+</body>
+</html>

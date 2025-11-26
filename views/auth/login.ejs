@@ -31,12 +31,28 @@
         </div>
     </div>
 
+    <!-- Cache System Scripts -->
+    <script src="/js/cache.js"></script>
+    <script src="/js/cart-manager.js"></script>
+    <script src="/js/session-manager.js"></script>
+
     <script>
+        // Initialize cache system
+        window.cache = new BrowserCache();
+        window.cartManager = new CartManager();
+        window.userSessionManager = new UserSessionManager();
+
+        // Add auto-save attribute to form
+        document.getElementById('loginForm').setAttribute('data-autosave', 'login-form');
+
         // Add loading state to button on form submit
-        document.getElementById('loginForm').addEventListener('submit', function() {
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
             const btn = document.getElementById('loginBtn');
             btn.classList.add('loading');
             btn.disabled = true;
+            
+            // Clear saved form data on successful login
+            window.userSessionManager.clearFormData('login-form');
         });
         
         // Add focus animations
@@ -50,6 +66,45 @@
                 }
             });
         });
+
+        // Apply saved theme
+        window.userSessionManager.applyTheme();
+        
+        // Auto-restore form data
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedData = window.userSessionManager.restoreFormData('login-form');
+            if (savedData && savedData.email) {
+                document.getElementById('email').value = savedData.email;
+                document.getElementById('email').parentElement.classList.add('focused');
+            }
+        });
+
+        // Auto-save form data as user types
+        document.querySelectorAll('#loginForm input').forEach(input => {
+            if (input.type !== 'password') { // Don't save passwords
+                input.addEventListener('input', debounce(() => {
+                    const formData = {
+                        email: document.getElementById('email').value
+                    };
+                    window.userSessionManager.saveFormData('login-form', formData);
+                }, 1000));
+            }
+        });
+
+        // Utility function
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        console.log('✅ Login page with caching initialized');
     </script>
 </body>
 </html>

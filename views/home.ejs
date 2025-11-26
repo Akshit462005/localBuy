@@ -261,5 +261,22 @@
         <div class="footer-bottom">&copy; 2025 LocalBuy. All rights reserved.</div>
     </footer>
 
+    <!-- Cache System Scripts -->
+    <script src="/js/cache.js"></script>
+    <script src="/js/cart-manager.js"></script>
+    <script src="/js/session-manager.js"></script>
+    <script>
+        // Initialize basic caching for home page
+        if (typeof BrowserCache !== 'undefined') {
+            window.cache = new BrowserCache();
+            window.cartManager = new CartManager();
+            window.userSessionManager = new UserSessionManager();
+            
+            // Apply saved theme
+            window.userSessionManager.applyTheme();
+            
+            console.log('✅ LocalBuy Basic Cache System Ready');
+        }
+    </script>
     </body>
 </html>
