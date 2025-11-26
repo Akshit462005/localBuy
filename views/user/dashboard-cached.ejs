@@ -242,17 +242,44 @@
         </div>
     </footer>
 
-    <!-- Cache System Scripts -->
+    <!-- Session Storage Cache Scripts -->
     <script src="/js/cache.js"></script>
     <script src="/js/cart-manager.js"></script>
     <script src="/js/session-manager.js"></script>
+    
+    <!-- Local Storage Cache Scripts -->
+    <script src="/js/local-cache.js"></script>
+    <script src="/js/persistent-cart.js"></script>
+    <script src="/js/persistent-preferences.js"></script>
+    
+    <!-- Cache Integration -->
     <script src="/js/cache-integration.js"></script>
 
     <script>
-        // Initialize cache system
+        // Initialize Session Storage cache system
         window.cache = new BrowserCache();
         window.cartManager = new CartManager();
         window.userSessionManager = new UserSessionManager();
+        
+        // Initialize Local Storage cache system
+        window.localCache = new LocalStorageCache();
+        window.persistentCart = new PersistentCartManager(window.localCache);
+        window.persistentPreferences = new PersistentPreferencesManager(window.localCache);
+        
+        // Apply persistent theme
+        window.persistentPreferences.applyTheme();
+        
+        // Initialize dual cache system
+        if (typeof initializeCacheSystems === 'function') {
+            initializeCacheSystems();
+        }
+        
+        // Initialize dual cache system
+        if (typeof initializeCacheSystems === 'function') {
+            initializeCacheSystems();
+        }
+        
+        console.log('✅ LocalBuy Dual Cache System Ready (Session + Local Storage)');
 
         // Global variables
         let allProducts = [];
@@ -415,14 +442,22 @@
             const product = allProducts.find(p => p.id === productId);
             if (!product) return;
 
-            // Use cart manager for caching
-            window.cartManager.addItem({
+            const cartItem = {
                 id: product.id,
                 name: product.name,
                 price: product.price,
                 image: product.image_url,
                 quantity: 1
-            });
+            };
+
+            // Add to both Session Storage cart (temporary) and Local Storage cart (persistent)
+            window.cartManager.addItem(cartItem);
+            
+            // Also add to persistent cart if available
+            if (window.persistentCart) {
+                window.persistentCart.addItem(cartItem);
+                console.log('✅ Added to both session and persistent carts');
+            }
 
             const originalText = buttonEl.innerHTML;
             buttonEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';

@@ -48,34 +48,50 @@
     <!-- Notifications container -->
     <div id="notification-container"></div>
 
-    <!-- Cache JavaScript files -->
+    <!-- Session Storage Cache Scripts -->
     <script src="/js/cache.js"></script>
     <script src="/js/cart-manager.js"></script>
     <script src="/js/session-manager.js"></script>
+    
+    <!-- Local Storage Cache Scripts -->
+    <script src="/js/local-cache.js"></script>
+    <script src="/js/persistent-cart.js"></script>
+    <script src="/js/persistent-preferences.js"></script>
+    
+    <!-- Cache Integration -->
     <script src="/js/cache-integration.js"></script>
 
     <!-- Initialize caching system -->
     <script>
-        // Initialize global cache instances
+        // Initialize Session Storage cache instances
         window.cache = new BrowserCache();
         window.cartManager = new CartManager();
         window.userSessionManager = new UserSessionManager();
 
+        // Initialize Local Storage cache instances
+        window.localCache = new LocalStorageCache();
+        window.persistentCart = new PersistentCartManager(window.localCache);
+        window.persistentPreferences = new PersistentPreferencesManager(window.localCache);
+
         // Set current user data
         <% if (user) { %>
-        window.userSessionManager.setUserData({
+        window.userSessionManager.saveUserSession({
             id: '<%= user.id %>',
-            name: '<%= user.name %>',
+            username: '<%= user.name %>',
             email: '<%= user.email %>',
-            role: '<%= user.role %>',
-            loginTime: new Date().toISOString()
+            role: '<%= user.role %>'
         });
         <% } %>
 
-        // Apply saved theme
-        window.userSessionManager.applyTheme();
+        // Apply saved theme from persistent preferences
+        window.persistentPreferences.applyTheme();
 
-        console.log('✅ LocalBuy Cache System Ready');
+        // Initialize the dual cache system
+        if (typeof initializeCacheSystems === 'function') {
+            initializeCacheSystems();
+        }
+
+        console.log('✅ LocalBuy Dual Cache System Ready (Session + Local Storage)');
     </script>
 
     <!-- Page-specific scripts -->

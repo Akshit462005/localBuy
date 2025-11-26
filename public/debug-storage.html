@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalStorage Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ddd; }
+        .success { background: #e8f5e8; }
+        .error { background: #ffe8e8; }
+        button { margin: 5px; padding: 10px; }
+        .output { background: #f5f5f5; padding: 10px; margin: 10px 0; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>LocalStorage Debug Tool</h1>
+    
+    <div>
+        <button onclick="testBasicLocalStorage()">Test Basic LocalStorage</button>
+        <button onclick="testLocalBuyData()">Test LocalBuy Data</button>
+        <button onclick="showAllData()">Show All LocalStorage</button>
+        <button onclick="clearAllData()">Clear All LocalStorage</button>
+    </div>
+    
+    <div id="output" class="output"></div>
+    
+    <script>
+        function log(message) {
+            const output = document.getElementById('output');
+            output.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
+            console.log(message);
+        }
+        
+        function testBasicLocalStorage() {
+            log('=== Testing Basic LocalStorage ===');
+            
+            try {
+                // Test 1: Basic set/get
+                localStorage.setItem('test1', 'hello world');
+                const value1 = localStorage.getItem('test1');
+                log('Basic set/get: ' + (value1 === 'hello world' ? '✅ PASS' : '❌ FAIL'));
+                
+                // Test 2: JSON data
+                const testObj = {name: 'Test', value: 123};
+                localStorage.setItem('test2', JSON.stringify(testObj));
+                const value2 = JSON.parse(localStorage.getItem('test2'));
+                log('JSON set/get: ' + (value2.name === 'Test' ? '✅ PASS' : '❌ FAIL'));
+                
+                // Test 3: LocalBuy format
+                const localBuyKey = 'localbuy_local_test';
+                const localBuyData = {items: ['item1', 'item2'], timestamp: Date.now()};
+                localStorage.setItem(localBuyKey, JSON.stringify(localBuyData));
+                const value3 = JSON.parse(localStorage.getItem(localBuyKey));
+                log('LocalBuy format: ' + (value3.items.length === 2 ? '✅ PASS' : '❌ FAIL'));
+                
+            } catch (e) {
+                log('❌ Error in basic test: ' + e.message);
+            }
+        }
+        
+        function testLocalBuyData() {
+            log('=== Testing LocalBuy-style Data ===');
+            
+            // Simulate cart data
+            const cartData = {
+                items: [
+                    {id: 1, name: 'Product 1', price: 19.99, quantity: 2},
+                    {id: 2, name: 'Product 2', price: 29.99, quantity: 1}
+                ],
+                total: 69.97,
+                count: 3,
+                lastUpdated: Date.now()
+            };
+            
+            localStorage.setItem('localbuy_local_persistent_cart', JSON.stringify(cartData));
+            log('✅ Cart data saved');
+            
+            // Simulate preferences
+            const prefsData = {
+                theme: 'dark',
+                language: 'en',
+                viewMode: 'grid',
+                savedAt: new Date().toISOString()
+            };
+            
+            localStorage.setItem('localbuy_local_user_preferences', JSON.stringify(prefsData));
+            log('✅ Preferences saved');
+            
+            // Simulate search history
+            const searchData = {
+                queries: ['laptop', 'headphones', 'books'],
+                timestamps: [Date.now() - 3600000, Date.now() - 1800000, Date.now()],
+                maxEntries: 10
+            };
+            
+            localStorage.setItem('localbuy_local_search_history', JSON.stringify(searchData));
+            log('✅ Search history saved');
+        }
+        
+        function showAllData() {
+            log('=== All LocalStorage Data ===');
+            
+            if (localStorage.length === 0) {
+                log('❌ No data found in LocalStorage');
+                return;
+            }
+            
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                
+                try {
+                    // Try to parse as JSON for better display
+                    const parsed = JSON.parse(value);
+                    log(`${key}: ${JSON.stringify(parsed, null, 2)}`);
+                } catch {
+                    // Not JSON, display as string
+                    log(`${key}: ${value}`);
+                }
+            }
+        }
+        
+        function clearAllData() {
+            localStorage.clear();
+            log('🗑️ All LocalStorage data cleared');
+        }
+        
+        // Auto-run basic test on page load
+        window.onload = function() {
+            log('LocalStorage Debug Tool Ready');
+            log('Storage available: ' + (typeof Storage !== 'undefined' ? '✅ Yes' : '❌ No'));
+            showAllData();
+        };
+    </script>
+</body>
+</html>

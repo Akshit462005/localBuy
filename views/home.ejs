@@ -261,21 +261,47 @@
         <div class="footer-bottom">&copy; 2025 LocalBuy. All rights reserved.</div>
     </footer>
 
-    <!-- Cache System Scripts -->
+    <!-- Session Storage Cache Scripts -->
     <script src="/js/cache.js"></script>
     <script src="/js/cart-manager.js"></script>
     <script src="/js/session-manager.js"></script>
+    
+    <!-- Local Storage Cache Scripts -->
+    <script src="/js/local-cache.js"></script>
+    <script src="/js/persistent-cart.js"></script>
+    <script src="/js/persistent-preferences.js"></script>
+    
+    <!-- Cache Integration -->
+    <script src="/js/cache-integration.js"></script>
+    
     <script>
-        // Initialize basic caching for home page
+        // Initialize dual caching system for home page
         if (typeof BrowserCache !== 'undefined') {
+            // Session Storage cache instances
             window.cache = new BrowserCache();
             window.cartManager = new CartManager();
             window.userSessionManager = new UserSessionManager();
             
-            // Apply saved theme
-            window.userSessionManager.applyTheme();
-            
-            console.log('✅ LocalBuy Basic Cache System Ready');
+            // Local Storage cache instances  
+            if (typeof LocalStorageCache !== 'undefined') {
+                window.localCache = new LocalStorageCache();
+                window.persistentCart = new PersistentCartManager(window.localCache);
+                window.persistentPreferences = new PersistentPreferencesManager(window.localCache);
+                
+                // Apply persistent theme
+                window.persistentPreferences.applyTheme();
+                
+                // Initialize dual cache system
+                if (typeof initializeCacheSystems === 'function') {
+                    initializeCacheSystems();
+                }
+                
+                console.log('✅ LocalBuy Dual Cache System Ready (Session + Local Storage)');
+            } else {
+                // Fallback to Session Storage only
+                window.userSessionManager.applyTheme();
+                console.log('✅ LocalBuy Session Cache System Ready');
+            }
         }
     </script>
     </body>

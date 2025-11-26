@@ -6,6 +6,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 LocalBuy Browser Cache System Initialized');
 
+    // Initialize both cache systems
+    initializeCacheSystems();
+
     // Initialize cache debug panel
     if (window.location.search.includes('debug=cache')) {
         initCacheDebugPanel();
@@ -23,6 +26,78 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show cache status
     showCacheStatus();
 });
+
+/**
+ * Initialize both Session Storage and Local Storage cache systems
+ */
+function initializeCacheSystems() {
+    try {
+        // Initialize Local Storage cache systems only if not already done
+        if (!window.localCache) {
+            window.localCache = new LocalStorageCache();
+        }
+        if (!window.persistentCart) {
+            window.persistentCart = new PersistentCartManager(window.localCache);
+        }
+        if (!window.persistentPrefs) {
+            window.persistentPreferences = new PersistentPreferencesManager(window.localCache);
+        }
+        
+        // Initialize existing cache systems if not already done
+        if (!window.cache) {
+            window.cache = new BrowserCache();
+        }
+        if (!window.cartManager) {
+            window.cartManager = new CartManager();
+        }
+        if (!window.userSessionManager) {
+            window.userSessionManager = new UserSessionManager();
+        }
+        
+        // Sync between cache systems after a short delay to ensure everything is initialized
+        setTimeout(() => {
+            syncCacheSystems();
+        }, 100);
+        
+        console.log('✅ Both Session and Local Storage cache systems initialized');
+    } catch (error) {
+        console.error('❌ Error initializing cache systems:', error);
+    }
+}
+
+/**
+ * Sync data between Session Storage and Local Storage
+ */
+function syncCacheSystems() {
+    try {
+        // Ensure all managers are initialized
+        if (!window.persistentCart || !window.persistentPreferences || !window.cartManager || !window.userSessionManager) {
+            console.warn('⚠️ Not all cache managers are initialized yet');
+            return;
+        }
+        
+        // Sync cart data from persistent to session
+        const persistentCartData = window.persistentCart.getSummary();
+        if (persistentCartData && persistentCartData.items && persistentCartData.items.length > 0) {
+            persistentCartData.items.forEach(item => {
+                window.cartManager.addItem(item);
+            });
+        }
+        
+        // Sync preferences from persistent to session
+        const persistentTheme = window.persistentPreferences.getTheme();
+        if (persistentTheme) {
+            // Use savePreferences method which exists in UserSessionManager
+            window.userSessionManager.savePreferences({
+                theme: persistentTheme
+            });
+        }
+        
+        console.log('🔄 Cache systems synced');
+    } catch (error) {
+        console.error('Error syncing cache systems:', error);
+    }
+}
 
 /**
  * Initialize cache debug panel
@@ -131,9 +206,17 @@ function handleAddToCart(button) {
         quantity: 1
     };
 
+    // Add to both cache systems
     if (window.cartManager) {
         window.cartManager.addItem(product);
     }
+    
+    if (window.persistentCart) {
+        window.persistentCart.addItem(product);
+    }
+    
+    // Show notification
+    showNotification(`${product.name} added to cart!`, 'success');
 }
 
 /**
@@ -221,6 +304,7 @@ function setupSearchCaching() {
  * Cache search query
  */
 function cacheSearchQuery(query) {
+    // Session storage (temporary)
     const searches = window.cache.get('search_history') || [];
     
     // Remove if already exists
@@ -238,6 +322,11 @@ function cacheSearchQuery(query) {
     }
     
     window.cache.set('search_history', searches, 7 * 24 * 60); // Cache for 7 days
+    
+    // Persistent storage (survives browser restart)
+    if (window.persistentPrefs) {
+        window.persistentPrefs.addSearchQuery(query);
+    }
 }
 
 /**
@@ -246,10 +335,20 @@ function cacheSearchQuery(query) {
 function showSearchSuggestions(input, query) {
     if (query.length < 2) return;
 
-    const searches = window.cache.get('search_history') || [];
-    const suggestions = searches.filter(search => 
-        search.toLowerCase().includes(query.toLowerCase())
-    ).slice(0, 5);
+    let suggestions = [];
+    
+    // Get suggestions from persistent storage first
+    if (window.persistentPrefs) {
+        suggestions = window.persistentPrefs.getSearchSuggestions(query, 5);
+    }
+    
+    // Fallback to session storage if no persistent suggestions
+    if (suggestions.length === 0) {
+        const searches = window.cache.get('search_history') || [];
+        suggestions = searches.filter(search => 
+            search.toLowerCase().includes(query.toLowerCase())
+        ).slice(0, 5);
+    }
 
     if (suggestions.length > 0) {
         showSuggestionDropdown(input, suggestions);
@@ -385,4 +484,41 @@ function showSavedIndicator(form) {
     setTimeout(() => {
         form.classList.remove('saved');
     }, 2000);
+}
+
+/**
+ * Show notification
+ */
+function showNotification(message, type = 'info', duration = 3000) {
+    const container = document.getElementById('notification-container') || createNotificationContainer();
+    
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <span class="notification-message">${message}</span>
+        <button class="notification-close" onclick="this.parentElement.remove()">×</button>
+    `;
+    
+    container.appendChild(notification);
+    
+    // Auto-remove after duration
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, duration);
+}
+
+/**
+ * Create notification container if it doesn't exist
+ */
+function createNotificationContainer() {
+    let container = document.getElementById('notification-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notification-container';
+        container.className = 'notification-container';
+        document.body.appendChild(container);
+    }
+    return container;
 }

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalStorage Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ddd; }
+        .success { background: #e8f5e8; }
+        .error { background: #ffe8e8; }
+    </style>
+</head>
+<body>
+    <h1>LocalStorage Test Page</h1>
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        function addResult(message, isSuccess = true) {
+            const div = document.createElement('div');
+            div.className = `test ${isSuccess ? 'success' : 'error'}`;
+            div.textContent = message;
+            results.appendChild(div);
+        }
+        
+        // Test 1: Basic LocalStorage Support
+        try {
+            localStorage.setItem('test', 'value');
+            localStorage.removeItem('test');
+            addResult('✅ LocalStorage is supported');
+        } catch (e) {
+            addResult('❌ LocalStorage not supported: ' + e.message, false);
+        }
+        
+        // Test 2: Load Local Storage Scripts
+        const scripts = [
+            '/js/local-cache.js',
+            '/js/persistent-cart.js', 
+            '/js/persistent-preferences.js'
+        ];
+        
+        scripts.forEach(src => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = () => addResult(`✅ Loaded: ${src}`);
+            script.onerror = () => addResult(`❌ Failed to load: ${src}`, false);
+            document.head.appendChild(script);
+        });
+        
+        // Test 3: Initialize LocalStorage classes after scripts load
+        setTimeout(() => {
+            try {
+                if (typeof LocalStorageCache !== 'undefined') {
+                    const localCache = new LocalStorageCache();
+                    addResult('✅ LocalStorageCache class initialized');
+                    
+                    // Test basic operations
+                    localCache.set('test-key', 'test-value');
+                    const value = localCache.get('test-key');
+                    if (value === 'test-value') {
+                        addResult('✅ LocalStorageCache set/get works');
+                    } else {
+                        addResult('❌ LocalStorageCache set/get failed: ' + value, false);
+                    }
+                    
+                    // Test direct localStorage access
+                    localStorage.setItem('direct-test', 'direct-value');
+                    const directValue = localStorage.getItem('direct-test');
+                    if (directValue === 'direct-value') {
+                        addResult('✅ Direct localStorage works');
+                    } else {
+                        addResult('❌ Direct localStorage failed', false);
+                    }
+                    
+                    // Show all localStorage keys
+                    const keys = [];
+                    for (let i = 0; i < localStorage.length; i++) {
+                        keys.push(localStorage.key(i));
+                    }
+                    addResult('📋 LocalStorage keys: ' + keys.join(', '));
+                    
+                } else {
+                    addResult('❌ LocalStorageCache class not found', false);
+                }
+            } catch (e) {
+                addResult('❌ LocalStorageCache error: ' + e.message, false);
+            }
+            
+            try {
+                if (typeof PersistentCartManager !== 'undefined' && typeof LocalStorageCache !== 'undefined') {
+                    const localCache = new LocalStorageCache();
+                    const persistentCart = new PersistentCartManager(localCache);
+                    addResult('✅ PersistentCartManager initialized with LocalStorageCache');
+                    
+                    // Test cart operations
+                    persistentCart.addItem({id: 1, name: 'Test Product', price: 19.99, quantity: 1});
+                    const items = persistentCart.getItems();
+                    addResult('🛒 Test cart items: ' + items.length);
+                } else {
+                    addResult('❌ PersistentCartManager or LocalStorageCache class not found', false);
+                }
+            } catch (e) {
+                addResult('❌ PersistentCartManager error: ' + e.message, false);
+            }
+            
+            try {
+                if (typeof PersistentPreferencesManager !== 'undefined' && typeof LocalStorageCache !== 'undefined') {
+                    const localCache = new LocalStorageCache();
+                    const persistentPrefs = new PersistentPreferencesManager(localCache);
+                    addResult('✅ PersistentPreferencesManager initialized with LocalStorageCache');
+                    
+                    // Test preferences operations
+                    persistentPrefs.setPreference('testPref', 'testValue');
+                    const pref = persistentPrefs.getPreference('testPref');
+                    addResult('⚙️ Test preference: ' + pref);
+                } else {
+                    addResult('❌ PersistentPreferencesManager or LocalStorageCache class not found', false);
+                }
+            } catch (e) {
+                addResult('❌ PersistentPreferencesManager error: ' + e.message, false);
+            }
+            
+            // Final check: Show all localStorage content
+            setTimeout(() => {
+                addResult('--- FINAL LOCALSTORAGE CONTENT ---');
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    const value = localStorage.getItem(key);
+                    addResult(`${key}: ${value.substring(0, 100)}...`);
+                }
+            }, 2000);
+        }, 1000);
+    </script>
+</body>
+</html>
