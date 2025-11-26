@@ -8,7 +8,8 @@
     "dev": "nodemon src/app.js",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:browser": "node browser-test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -27,6 +28,7 @@
     "axios": "^1.12.2",
     "jest": "^30.2.0",
     "nodemon": "^3.0.1",
+    "puppeteer": "^21.0.0",
     "supertest": "^7.1.4"
   },
   "jest": {

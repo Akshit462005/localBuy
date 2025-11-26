@@ -68,6 +68,9 @@ dump.rdb
 # Jest coverage
 coverage/
 
+# Screenshots from browser tests
+screenshots/
+
 # Temporary files
 temp/
 tmp/
