@@ -5,6 +5,12 @@ const { createApp } = require('../src/app');
 let app;
 let server;
 
+// Override Redis settings for testing to avoid connection issues
+process.env.REDIS_HOST = 'nonexistent';
+process.env.REDIS_PORT = '0000';
+process.env.REDIS_URL = '';
+process.env.REDIS_USERNAME = '';
+
 beforeAll(async () => {
     // Create a test version of the app
     app = createApp();
@@ -13,8 +19,15 @@ beforeAll(async () => {
 
 afterAll(async () => {
     if (server) {
-        await new Promise((resolve) => server.close(resolve));
+        await new Promise((resolve) => {
+            server.close(() => {
+                resolve();
+            });
+        });
     }
+    
+    // Give a small delay to ensure all connections are closed
+    await new Promise(resolve => setTimeout(resolve, 100));
 });
 
 describe('LocalBuy API Endpoints', () => {
@@ -112,11 +125,54 @@ describe('LocalBuy API Endpoints', () => {
             expect([200, 302]).toContain(response.status);
         });
 
-        test('GET /user/dashboard should be accessible to authenticated user', async () => {
+        test('GET /user/dashboard should be forbidden for shopkeeper', async () => {
             const response = await agent
                 .get('/user/dashboard');
             
+            // Shopkeeper should not have access to user dashboard
+            expect([403, 302]).toContain(response.status);
+        });
+    });
+
+    describe('User Protected Routes', () => {
+        let userAgent;
+        
+        beforeEach(async () => {
+            userAgent = request.agent(app);
+            
+            // Create and login as regular user
+            const testUser = {
+                username: 'testuser' + Date.now(),
+                email: `testuser${Date.now()}@test.com`,
+                password: 'testpass123',
+                role: 'user'
+            };
+
+            await userAgent
+                .post('/auth/register')
+                .send(testUser);
+
+            await userAgent
+                .post('/auth/login')
+                .send({
+                    email: testUser.email,
+                    password: testUser.password
+                });
+        });
+
+        test('GET /user/dashboard should be accessible to authenticated user', async () => {
+            const response = await userAgent
+                .get('/user/dashboard');
+            
             expect([200, 302]).toContain(response.status);
+        });
+
+        test('GET /shopkeeper/dashboard should be forbidden for regular user', async () => {
+            const response = await userAgent
+                .get('/shopkeeper/dashboard');
+            
+            // Regular user should not have access to shopkeeper dashboard
+            expect([403, 302]).toContain(response.status);
         });
     });
 

@@ -9,7 +9,10 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:browser": "node browser-test.js"
+    "test:browser": "node browser-test.js",
+    "test:browser:visible": "cross-env HEADLESS=false node browser-test.js",
+    "test:browser:slow": "cross-env HEADLESS=false SLOWMO=2000 node browser-test.js",
+    "test:browser:debug": "cross-env HEADLESS=false DEVTOOLS=true node browser-test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -26,6 +29,7 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "axios": "^1.12.2",
+    "cross-env": "^10.1.0",
     "jest": "^30.2.0",
     "nodemon": "^3.0.1",
     "puppeteer": "^21.0.0",
@@ -50,6 +54,8 @@
     ],
     "setupFilesAfterEnv": [
       "<rootDir>/tests/setup.js"
-    ]
+    ],
+    "forceExit": true,
+    "detectOpenHandles": false
   }
 }

@@ -27,6 +27,17 @@ beforeAll(async () => {
 
 afterAll(async () => {
     // Global cleanup after all tests
+    // Force close any Redis connections
+    if (global.redisClient) {
+        try {
+            await global.redisClient.quit();
+        } catch (error) {
+            // Redis client might already be closed
+        }
+    }
+    
+    // Give time for all async operations to complete
+    await new Promise(resolve => setTimeout(resolve, 500));
 });
 
 beforeEach(() => {
