@@ -79,7 +79,7 @@ const pool = new Pool({
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, '../public')));
 
 // Session configuration with Redis store (fallback to memory store)
 const sessionConfig = {
