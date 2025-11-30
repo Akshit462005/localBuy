@@ -244,7 +244,26 @@ router.post('/edit-product/:id', auth, isShopkeeper, async (req, res) => {
             if (!validation.valid) {
                 return res.render('shopkeeper/edit-product', { 
                     product: { id: req.params.id, name, description, price, image_url: req.body.existing_image },
-                    error: validation.error\n                });\n            }\n            \n            try {\n                console.log('Downloading new image for product:', req.params.id);\n                processedImageUrl = await downloadImageFromURL(image_url.trim(), req.user.id);\n                console.log('New image processed successfully:', processedImageUrl);\n            } catch (downloadError) {\n                console.error('Image download failed:', downloadError.message);\n                return res.render('shopkeeper/edit-product', { \n                    product: { id: req.params.id, name, description, price, image_url: req.body.existing_image },\n                    error: `Failed to download image: ${downloadError.message}`\n                });\n            }\n        }\n\n        await pool.query(\n            'UPDATE products SET name = $1, description = $2, price = $3, image_url = $4 WHERE id = $5 AND shopkeeper_id = $6',\n            [name, description, price, processedImageUrl, req.params.id, req.user.id]\n        );\n\n        res.redirect('/shopkeeper/dashboard');\n    } catch (err) {\n        console.error('Update product error:', err);\n        res.render('error', { message: 'Error updating product' });\n    }\n});
+                    error: validation.error
+                });
+            }
+            
+            // Convert Google Drive links to direct URLs for better compatibility
+            processedImageUrl = convertGoogleDriveLink(image_url.trim());
+            console.log('Using new image URL directly:', processedImageUrl);
+        }
+
+        await pool.query(
+            'UPDATE products SET name = $1, description = $2, price = $3, image_url = $4 WHERE id = $5 AND shopkeeper_id = $6',
+            [name, description, price, processedImageUrl, req.params.id, req.user.id]
+        );
+
+        res.redirect('/shopkeeper/dashboard');
+    } catch (err) {
+        console.error('Update product error:', err);
+        res.render('error', { message: 'Error updating product' });
+    }
+});
 
 // Delete product
 router.post('/delete-product/:id', auth, isShopkeeper, async (req, res) => {

@@ -1,8 +1,7 @@
 const request = require('supertest');
-const { createApp } = require('../src/app');
+const app = require('../src/app');
 
 // Mock app for testing
-let app;
 let server;
 
 // Override Redis settings for testing to avoid connection issues
@@ -12,8 +11,7 @@ process.env.REDIS_URL = '';
 process.env.REDIS_USERNAME = '';
 
 beforeAll(async () => {
-    // Create a test version of the app
-    app = createApp();
+    // Use the app directly from the import
     server = app.listen(0); // Use random available port for testing
 });
 

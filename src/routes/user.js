@@ -38,50 +38,73 @@ router.get('/dashboard', auth, isUser, async (req, res) => {
 router.post('/add-to-cart', auth, isUser, async (req, res) => {
     try {
         const { productId } = req.body;
+        console.log('🛒 Add to cart request:', { productId, userId: req.user?.id, sessionId: req.sessionID });
+        
         if (!req.session.cart) {
             req.session.cart = [];
+            console.log('📝 Initialized new cart for session:', req.sessionID);
         }
         
         const result = await pool.query('SELECT * FROM products WHERE id = $1', [productId]);
         const product = result.rows[0];
         
         if (!product) {
+            console.log('❌ Product not found:', productId);
             if (req.headers['content-type']?.includes('application/json')) {
                 return res.status(404).json({ error: 'Product not found' });
             }
             return res.render('error', { message: 'Product not found' });
         }
         
+        console.log('✅ Found product:', { id: product.id, name: product.name, price: product.price });
+        
         const cartItem = req.session.cart.find(item => item.id === product.id);
         if (cartItem) {
             cartItem.quantity += 1;
+            console.log('📈 Updated existing cart item quantity:', cartItem.quantity);
         } else {
             req.session.cart.push({
                 id: product.id,
                 name: product.name,
                 price: product.price,
-                quantity: 1
+                quantity: 1,
+                image_url: product.image_url,
+                description: product.description
             });
+            console.log('➕ Added new item to cart');
         }
         
-        // API response for cache integration
-        if (req.headers['content-type']?.includes('application/json') || req.query.format === 'json') {
-            const cart = req.session.cart || [];
-            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+        console.log('🛒 Current cart contents:', req.session.cart);
+        
+        // Force session save before responding
+        req.session.save((err) => {
+            if (err) {
+                console.error('❌ Session save error:', err);
+                return res.status(500).json({ error: 'Failed to save cart' });
+            }
             
-            return res.json({
-                success: true,
-                message: 'Product added to cart',
-                cart: {
-                    items: cart,
-                    total: total,
-                    count: count
-                }
-            });
-        }
+            console.log('💾 Cart saved successfully to session:', req.sessionID);
         
-        res.redirect('/user/cart');
+            // API response for cache integration
+            if (req.headers['content-type']?.includes('application/json') || req.query.format === 'json') {
+                const cart = req.session.cart || [];
+                const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+                
+                return res.json({
+                    success: true,
+                    message: 'Product added to cart',
+                    cart: {
+                        items: cart,
+                        total: total,
+                        count: count
+                    }
+                });
+            }
+            
+            console.log('🔄 Redirecting to cart page');
+            res.redirect('/user/cart');
+        });
     } catch (err) {
         if (req.headers['content-type']?.includes('application/json')) {
             return res.status(500).json({ error: 'Error adding to cart' });
@@ -92,9 +115,20 @@ router.post('/add-to-cart', auth, isUser, async (req, res) => {
 
 // View cart with cache support
 router.get('/cart', auth, isUser, (req, res) => {
+    console.log('🛒 GET /cart - Session ID:', req.sessionID);
+    console.log('🛒 GET /cart - Session exists:', !!req.session);
+    console.log('🛒 GET /cart - User in session:', req.session?.user?.name || 'No user');
+    console.log('🛒 GET /cart - Raw cart data:', req.session.cart);
+    
     const cart = req.session.cart || [];
+    console.log('🛒 GET /cart - Processed cart:', cart);
+    console.log('🛒 GET /cart - Cart items count:', cart.length);
+    
     const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+    
+    console.log('🛒 GET /cart - Total calculated:', total);
+    console.log('🛒 GET /cart - Count calculated:', count);
     
     // API response for cache integration
     if (req.headers.accept?.includes('application/json') || req.query.format === 'json') {
@@ -115,6 +149,7 @@ router.get('/cart', auth, isUser, (req, res) => {
         user: req.user
     };
     
+    console.log('🛒 GET /cart - Rendering with data:', viewData);
     res.render('user/cart', viewData);
 });
 

@@ -44,7 +44,19 @@ try {
             const url = `${scheme}://${userEnc}:${passEnc}@${host}:${port}/${db}`;
             console.log('🔗 App.js using URL-based Redis connection');
             redisClient = createClient({ url });
-        } else {\n            console.log('🔗 App.js using socket-based Redis connection');\n            redisClient = createClient({\n                socket: {\n                    host,\n                    port,\n                    tls: tls || undefined\n                },\n                password: password || undefined,\n                database: db\n            });\n        }\n    }
+        } else {
+            console.log('🔗 App.js using socket-based Redis connection');
+            redisClient = createClient({
+                socket: {
+                    host,
+                    port,
+                    tls: tls || undefined
+                },
+                password: password || undefined,
+                database: db
+            });
+        }
+    }
 
     redisClient.on('error', (err) => {
         console.error('Redis Client Error:', err);

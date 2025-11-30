@@ -2,7 +2,43 @@ const { createClient } = require('redis');
 
 class RedisCache {
     constructor() {
-        console.log('🔧 Initializing Redis Cache Client...');\n        \n        // Use same configuration as app.js for consistency\n        const redisUrl = process.env.REDIS_URL;\n        if (redisUrl) {\n            console.log('📡 Using REDIS_URL for connection');\n            this.client = createClient({ url: redisUrl });\n        } else {\n            const username = process.env.REDIS_USERNAME;\n            const password = process.env.REDIS_PASSWORD;\n            const host = process.env.REDIS_HOST || 'localhost';\n            const port = process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379;\n            const tls = process.env.REDIS_TLS === 'true';\n            const db = process.env.REDIS_DB ? parseInt(process.env.REDIS_DB, 10) : 0;\n            \n            console.log('📡 Redis Config:', { host, port, username, tls, db });\n            \n            if (username) {\n                const scheme = tls ? 'rediss' : 'redis';\n                const userEnc = encodeURIComponent(username);\n                const passEnc = password ? encodeURIComponent(password) : '';\n                const url = `${scheme}://${userEnc}:${passEnc}@${host}:${port}/${db}`;\n                console.log('🔗 Using URL-based connection (with DB):', url.replace(passEnc, '***'));\n                this.client = createClient({ url });\n            } else {\n                console.log('🔗 Using socket-based connection');\n                this.client = createClient({\n                    socket: {\n                        host,\n                        port,\n                        tls: tls || undefined\n                    },\n                    password: password || undefined,\n                    database: db\n                });\n            }\n        }
+        console.log('🔧 Initializing Redis Cache Client...');
+        
+        // Use same configuration as app.js for consistency
+        const redisUrl = process.env.REDIS_URL;
+        if (redisUrl) {
+            console.log('📡 Using REDIS_URL for connection');
+            this.client = createClient({ url: redisUrl });
+        } else {
+            const username = process.env.REDIS_USERNAME;
+            const password = process.env.REDIS_PASSWORD;
+            const host = process.env.REDIS_HOST || 'localhost';
+            const port = process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379;
+            const tls = process.env.REDIS_TLS === 'true';
+            const db = process.env.REDIS_DB ? parseInt(process.env.REDIS_DB, 10) : 0;
+            
+            console.log('📡 Redis Config:', { host, port, username, tls, db });
+            
+            if (username) {
+                const scheme = tls ? 'rediss' : 'redis';
+                const userEnc = encodeURIComponent(username);
+                const passEnc = password ? encodeURIComponent(password) : '';
+                const url = `${scheme}://${userEnc}:${passEnc}@${host}:${port}/${db}`;
+                console.log('🔗 Using URL-based connection (with DB):', url.replace(passEnc, '***'));
+                this.client = createClient({ url });
+            } else {
+                console.log('🔗 Using socket-based connection');
+                this.client = createClient({
+                    socket: {
+                        host,
+                        port,
+                        tls: tls || undefined
+                    },
+                    password: password || undefined,
+                    database: db
+                });
+            }
+        }
 
         this.client.on('error', (err) => {
             console.error('Redis Cache Client Error:', err);
