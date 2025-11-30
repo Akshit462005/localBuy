@@ -237,7 +237,7 @@ When accessing `https://localhost:3443`:
 2. Click "Proceed to localhost (unsafe)"
 3. This is normal for self-signed development certificates
 
-## Testing with Jest
+## Testing with Jest & Puppeteer
 
 ### Running Tests
 ```bash
@@ -252,6 +252,15 @@ npm run test:coverage
 
 # Run tests with verbose output
 npm test -- --verbose
+
+# Run browser automation tests
+npm run test:browser
+
+# Run Puppeteer tests directly
+node browser-test.js
+
+# Run Puppeteer with debug mode (visible browser)
+node browser-test.js --debug
 ```
 
 ### Test Structure
@@ -259,12 +268,100 @@ npm test -- --verbose
 - **Integration Tests**: API endpoint testing with supertest
 - **Database Tests**: Database connection and query testing
 - **Redis Tests**: Cache functionality testing
+- **Browser Tests**: Automated browser testing with Puppeteer
+- **E2E Tests**: End-to-end user workflow testing
 
 ### Test Files
 - `tests/api.test.js` - API endpoint tests
 - `tests/database.test.js` - Database connection tests
 - `tests/redis.test.js` - Redis cache utility tests
 - `tests/setup.js` - Jest configuration and global setup
+- `browser-test.js` - Puppeteer browser automation tests
+- `tests/e2e/` - End-to-end test directory
+
+## 🎭 Browser Testing with Puppeteer
+
+### Installation
+Install Puppeteer for automated browser testing:
+```bash
+npm install puppeteer --save-dev
+```
+
+### Browser Test Features
+- **Automated Login/Registration**: Test user authentication flows
+- **Cart Operations**: Add/remove products, checkout process
+- **HTTPS Testing**: Verify SSL certificate handling
+- **Responsive Design**: Test mobile and desktop layouts
+- **Performance Monitoring**: Measure page load times
+- **Screenshot Capture**: Visual regression testing
+
+### Basic Browser Test Example
+```javascript
+// browser-test.js
+const puppeteer = require('puppeteer');
+
+async function runBrowserTests() {
+  const browser = await puppeteer.launch({
+    headless: process.argv.includes('--debug') ? false : true,
+    slowMo: process.argv.includes('--debug') ? 100 : 0
+  });
+  
+  const page = await browser.newPage();
+  
+  try {
+    // Test HTTP connection
+    console.log('Testing HTTP connection...');
+    await page.goto('http://localhost:3000');
+    console.log('✅ HTTP connection successful');
+    
+    // Test HTTPS connection
+    console.log('Testing HTTPS connection...');
+    await page.goto('https://localhost:3443');
+    console.log('✅ HTTPS connection successful');
+    
+    // Test registration
+    console.log('Testing user registration...');
+    await page.goto('http://localhost:3000/auth/register');
+    await page.waitForSelector('form');
+    console.log('✅ Registration page loaded');
+    
+    // Test login page
+    console.log('Testing login page...');
+    await page.goto('http://localhost:3000/auth/login');
+    await page.waitForSelector('form');
+    console.log('✅ Login page loaded');
+    
+  } catch (error) {
+    console.error('❌ Browser test failed:', error.message);
+  } finally {
+    await browser.close();
+  }
+}
+
+runBrowserTests();
+```
+
+### Advanced Testing Features
+```javascript
+// Performance testing
+const performanceMetrics = await page.evaluate(() => {
+  const navigation = performance.getEntriesByType('navigation')[0];
+  return {
+    loadTime: navigation.loadEventEnd - navigation.navigationStart,
+    domContentLoaded: navigation.domContentLoadedEventEnd - navigation.navigationStart
+  };
+});
+
+// Mobile responsive testing
+await page.setViewport({ width: 375, height: 667 }); // iPhone SE
+await page.goto('http://localhost:3000');
+
+// Screenshot testing
+await page.screenshot({
+  path: 'screenshots/homepage-test.png',
+  fullPage: true
+});
+```
 
 ### Writing New Tests
 Create test files with `.test.js` or `.spec.js` extension in the `tests/` directory:
