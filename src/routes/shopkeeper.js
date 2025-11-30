@@ -1,12 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const { auth, isShopkeeper } = require('../middleware/auth');
-const multer = require('multer');
 const path = require('path');
 const { Pool } = require('pg');
 
 // Redis cache utility
 const redisCache = require('../utils/redis');
+
+// Image URL utility functions
+const { validateImageUrl, convertGoogleDriveLink } = require('../utils/imageDownloader');
 
 const pool = new Pool({
     user: process.env.POSTGRES_USER,
@@ -16,35 +18,6 @@ const pool = new Pool({
     database: process.env.POSTGRES_DB,
     ssl: { rejectUnauthorized: false } // Enable SSL for Aiven
 });
-
-// Configure multer for file upload
-const storage = multer.diskStorage({
-    destination: './public/uploads/',
-    filename: function(req, file, cb) {
-        cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
-    }
-});
-
-const upload = multer({
-    storage: storage,
-    limits: { fileSize: 1000000 },
-    fileFilter: function(req, file, cb) {
-        checkFileType(file, cb);
-    }
-});
-
-// Check file type
-function checkFileType(file, cb) {
-    const filetypes = /jpeg|jpg|png|gif/;
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = filetypes.test(file.mimetype);
-
-    if (mimetype && extname) {
-        return cb(null, true);
-    } else {
-        cb('Error: Images Only!');
-    }
-}
 
 // Shopkeeper dashboard
 router.get('/dashboard', auth, isShopkeeper, async (req, res) => {
@@ -66,9 +39,12 @@ router.get('/dashboard/metrics', auth, isShopkeeper, async (req, res) => {
 
         // ensure redis client is connected (best-effort)
         try {
-            if (!redisCache.client.isOpen) await redisCache.connect();
+            if (!redisCache.client.isOpen) {
+                console.log('🔄 Connecting to Redis for dashboard metrics...');
+                await redisCache.connect();
+            }
         } catch (e) {
-            console.warn('Redis cache not available, continuing without cache');
+            console.warn('⚠️ Redis cache not available, continuing without cache:', e.message);
         }
 
         const cacheKey = `shopkeeper:${shopkeeperId}:dashboard_metrics`;
@@ -133,9 +109,15 @@ router.get('/dashboard/metrics', auth, isShopkeeper, async (req, res) => {
 
         // store in cache (short TTL for near-real-time)
         try {
-            await redisCache.set(cacheKey, payload, 10); // 10 seconds
+            console.log('💾 Storing dashboard metrics in cache:', cacheKey);
+            const setResult = await redisCache.set(cacheKey, payload, 10); // 10 seconds
+            if (setResult) {
+                console.log('✅ Dashboard metrics cached successfully');
+            } else {
+                console.log('❌ Failed to cache dashboard metrics');
+            }
         } catch (e) {
-            console.warn('Redis SET failed:', e.message || e);
+            console.warn('❌ Redis SET failed:', e.message || e);
         }
 
         res.json(Object.assign({ fromCache: false }, payload));
@@ -166,7 +148,16 @@ router.get('/dashboard/metrics/cache', auth, isShopkeeper, async (req, res) => {
             // ignore
         }
 
-        res.json({ key: cacheKey, exists, ttl, value });
+        // Get debug info
+        const debugInfo = await redisCache.getDebugInfo();
+
+        res.json({ 
+            key: cacheKey, 
+            exists, 
+            ttl, 
+            value,
+            redisDebug: debugInfo
+        });
     } catch (err) {
         console.error('Error fetching cache info:', err);
         res.status(500).json({ error: 'Failed to fetch cache info' });
@@ -179,18 +170,44 @@ router.get('/add-product', auth, isShopkeeper, (req, res) => {
 });
 
 // Add product handler
-router.post('/add-product', auth, isShopkeeper, upload.single('image'), async (req, res) => {
+router.post('/add-product', auth, isShopkeeper, async (req, res) => {
     try {
-        const { name, description, price } = req.body;
-        const image_url = req.file ? `/uploads/${req.file.filename}` : null;
+        const { name, description, price, image_url } = req.body;
+        
+        // Validate required fields
+        if (!name || !description || !price) {
+            return res.render('shopkeeper/add-product', { 
+                error: 'Name, description, and price are required',
+                values: { name, description, price, image_url }
+            });
+        }
+        
+        let processedImageUrl = null;
+        
+        // Process image URL if provided
+        if (image_url && image_url.trim()) {
+            const validation = validateImageUrl(image_url.trim());
+            
+            if (!validation.valid) {
+                return res.render('shopkeeper/add-product', { 
+                    error: validation.error,
+                    values: { name, description, price, image_url }
+                });
+            }
+            
+            // Convert Google Drive links to direct URLs for better compatibility
+            processedImageUrl = convertGoogleDriveLink(image_url.trim());
+            console.log('Using image URL directly:', processedImageUrl);
+        }
 
         await pool.query(
             'INSERT INTO products (name, description, price, image_url, shopkeeper_id) VALUES ($1, $2, $3, $4, $5)',
-            [name, description, price, image_url, req.user.id]
+            [name, description, price, processedImageUrl, req.user.id]
         );
 
         res.redirect('/shopkeeper/dashboard');
     } catch (err) {
+        console.error('Add product error:', err);
         res.render('error', { message: 'Error adding product' });
     }
 });
@@ -214,21 +231,20 @@ router.get('/edit-product/:id', auth, isShopkeeper, async (req, res) => {
 });
 
 // Update product
-router.post('/edit-product/:id', auth, isShopkeeper, upload.single('image'), async (req, res) => {
+router.post('/edit-product/:id', auth, isShopkeeper, async (req, res) => {
     try {
-        const { name, description, price } = req.body;
-        const image_url = req.file ? `/uploads/${req.file.filename}` : req.body.existing_image;
-
-        await pool.query(
-            'UPDATE products SET name = $1, description = $2, price = $3, image_url = $4 WHERE id = $5 AND shopkeeper_id = $6',
-            [name, description, price, image_url, req.params.id, req.user.id]
-        );
-
-        res.redirect('/shopkeeper/dashboard');
-    } catch (err) {
-        res.render('error', { message: 'Error updating product' });
-    }
-});
+        const { name, description, price, image_url, keep_existing_image } = req.body;
+        
+        let processedImageUrl = req.body.existing_image; // Keep existing by default
+        
+        // If new image URL is provided and we're not keeping existing
+        if (image_url && image_url.trim() && !keep_existing_image) {
+            const validation = validateImageUrl(image_url.trim());
+            
+            if (!validation.valid) {
+                return res.render('shopkeeper/edit-product', { 
+                    product: { id: req.params.id, name, description, price, image_url: req.body.existing_image },
+                    error: validation.error\n                });\n            }\n            \n            try {\n                console.log('Downloading new image for product:', req.params.id);\n                processedImageUrl = await downloadImageFromURL(image_url.trim(), req.user.id);\n                console.log('New image processed successfully:', processedImageUrl);\n            } catch (downloadError) {\n                console.error('Image download failed:', downloadError.message);\n                return res.render('shopkeeper/edit-product', { \n                    product: { id: req.params.id, name, description, price, image_url: req.body.existing_image },\n                    error: `Failed to download image: ${downloadError.message}`\n                });\n            }\n        }\n\n        await pool.query(\n            'UPDATE products SET name = $1, description = $2, price = $3, image_url = $4 WHERE id = $5 AND shopkeeper_id = $6',\n            [name, description, price, processedImageUrl, req.params.id, req.user.id]\n        );\n\n        res.redirect('/shopkeeper/dashboard');\n    } catch (err) {\n        console.error('Update product error:', err);\n        res.render('error', { message: 'Error updating product' });\n    }\n});
 
 // Delete product
 router.post('/delete-product/:id', auth, isShopkeeper, async (req, res) => {

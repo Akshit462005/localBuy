@@ -20,25 +20,46 @@
     <main class="form-container">
         <div class="form-box">
             <h2>Add New Product</h2>
-            <form action="/shopkeeper/add-product" method="POST" enctype="multipart/form-data">
+            
+            <% if (typeof error !== 'undefined') { %>
+                <div class="alert alert-error">
+                    <%= error %>
+                </div>
+            <% } %>
+            
+            <form action="/shopkeeper/add-product" method="POST">
                 <div class="form-group">
                     <label for="name">Product Name</label>
-                    <input type="text" id="name" name="name" required>
+                    <input type="text" id="name" name="name" value="<%= typeof values !== 'undefined' ? values.name || '' : '' %>" required>
                 </div>
                 <div class="form-group">
                     <label for="description">Description</label>
-                    <textarea id="description" name="description" required></textarea>
+                    <textarea id="description" name="description" required><%= typeof values !== 'undefined' ? values.description || '' : '' %></textarea>
                 </div>
                 <div class="form-group">
                     <label for="price">Price (₹)</label>
-                    <input type="number" id="price" name="price" step="0.01" required>
+                    <input type="number" id="price" name="price" step="0.01" value="<%= typeof values !== 'undefined' ? values.price || '' : '' %>" required>
                 </div>
                 <div class="form-group">
-                    <label for="image">Product Image</label>
-                    <input type="file" id="image" name="image" accept="image/*">
+                    <label for="image_url">Product Image URL</label>
+                    <input type="url" id="image_url" name="image_url" placeholder="https://images.pexels.com/... or Google Drive link" value="<%= typeof values !== 'undefined' ? values.image_url || '' : '' %>">
+                    <small class="help-text">
+                        Images will be loaded directly from the URL. Supported: Pexels, Pixabay, Unsplash, Google Drive public links, Imgur, or direct image URLs
+                    </small>
                 </div>
                 <button type="submit" class="btn primary">Add Product</button>
             </form>
+            
+            <div class="image-examples">
+                <h3>Example Image Sources (loaded directly):</h3>
+                <ul>
+                    <li><strong>Pexels:</strong> https://images.pexels.com/photos/123456/photo.jpeg</li>
+                    <li><strong>Google Drive:</strong> https://drive.google.com/file/d/FILE_ID/view?usp=sharing</li>
+                    <li><strong>Imgur:</strong> https://i.imgur.com/IMAGE_ID.jpg</li>
+                    <li><strong>Unsplash:</strong> https://images.unsplash.com/photo-123456</li>
+                </ul>
+                <p class="note">⚡ Images load directly from these URLs - no server storage needed!</p>
+            </div>
         </div>
     </main>
 

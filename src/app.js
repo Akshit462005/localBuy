@@ -25,20 +25,26 @@ try {
     
     // Check for full URL first (Standard for Vercel/Render/Heroku)
     if (process.env.REDIS_URL) {
+        console.log('📡 App.js using REDIS_URL for session store');
         redisClient = createClient({ url: process.env.REDIS_URL });
     } else {
-        // Fallback to individual components
-        redisClient = createClient({
-            socket: {
-                host: process.env.REDIS_HOST || 'localhost',
-                port: parseInt(process.env.REDIS_PORT) || 6379,
-                tls: process.env.REDIS_TLS === 'true'
-            },
-            username: process.env.REDIS_USERNAME || 'default',
-            password: process.env.REDIS_PASSWORD || undefined,
-            database: parseInt(process.env.REDIS_DB) || 0
-        });
-    }
+        const username = process.env.REDIS_USERNAME;
+        const password = process.env.REDIS_PASSWORD;
+        const host = process.env.REDIS_HOST || 'localhost';
+        const port = parseInt(process.env.REDIS_PORT) || 6379;
+        const tls = process.env.REDIS_TLS === 'true';
+        const db = parseInt(process.env.REDIS_DB) || 0;
+        
+        console.log('📡 App.js Redis Session Config:', { host, port, username, tls, db });
+        
+        if (username) {
+            const scheme = tls ? 'rediss' : 'redis';
+            const userEnc = encodeURIComponent(username);
+            const passEnc = password ? encodeURIComponent(password) : '';
+            const url = `${scheme}://${userEnc}:${passEnc}@${host}:${port}/${db}`;
+            console.log('🔗 App.js using URL-based Redis connection');
+            redisClient = createClient({ url });
+        } else {\n            console.log('🔗 App.js using socket-based Redis connection');\n            redisClient = createClient({\n                socket: {\n                    host,\n                    port,\n                    tls: tls || undefined\n                },\n                password: password || undefined,\n                database: db\n            });\n        }\n    }
 
     redisClient.on('error', (err) => {
         console.error('Redis Client Error:', err);
