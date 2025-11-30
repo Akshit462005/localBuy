@@ -77,6 +77,10 @@ const pool = new Pool({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Cookie parser for backup authentication
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
+
 // 3. CORRECT STATIC PATH FOR VERCEL
 app.use(express.static(path.join(process.cwd(), 'public')));
 
