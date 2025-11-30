@@ -2,15 +2,18 @@ const jwt = require('jsonwebtoken');
 
 const auth = (req, res, next) => {
     try {
-        const token = req.session.token;
+        const token = req.session?.token;
         if (!token) {
+            console.log('No token found in session:', req.sessionID);
             return res.redirect('/auth/login');
         }
 
-        const decoded = jwt.verify(token, 'your-jwt-secret');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-jwt-secret-change-in-production');
         req.user = decoded;
         next();
     } catch (err) {
+        console.log('JWT verification failed:', err.message);
+        req.session?.destroy?.();
         res.redirect('/auth/login');
     }
 };

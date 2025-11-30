@@ -89,8 +89,8 @@ router.post('/login', async (req, res) => {
 
         const token = jwt.sign(
             { id: user.id, role: user.role },
-            'your-jwt-secret',
-            { expiresIn: '1h' }
+            process.env.JWT_SECRET || 'fallback-jwt-secret-change-in-production',
+            { expiresIn: '24h' }
         );
 
         req.session.token = token;
@@ -101,25 +101,46 @@ router.post('/login', async (req, res) => {
             role: user.role,
             loginTime: new Date().toISOString()
         };
+        
+        // Save session before redirect to ensure it persists
+        req.session.save((err) => {
+            if (err) {
+                console.error('Session save error:', err);
+                return res.render('auth/login', { error: 'Login failed - session error' });
+            }
 
-        // API response for cache integration
-        if (req.headers['content-type']?.includes('application/json') || req.query.format === 'json') {
-            return res.json({
-                success: true,
-                message: 'Login successful',
-                user: req.session.user,
-                redirectUrl: user.role === 'shopkeeper' ? '/shopkeeper/dashboard' : '/user/dashboard'
-            });
-        }
+            // API response for cache integration
+            if (req.headers['content-type']?.includes('application/json') || req.query.format === 'json') {
+                return res.json({
+                    success: true,
+                    message: 'Login successful',
+                    user: req.session.user,
+                    redirectUrl: user.role === 'shopkeeper' ? '/shopkeeper/dashboard' : '/user/dashboard'
+                });
+            }
 
-        if (user.role === 'shopkeeper') {
-            res.redirect('/shopkeeper/dashboard');
-        } else {
-            res.redirect('/user/dashboard');
-        }
+            if (user.role === 'shopkeeper') {
+                res.redirect('/shopkeeper/dashboard');
+            } else {
+                res.redirect('/user/dashboard');
+            }
+        });
     } catch (err) {
         res.render('error', { message: 'Login failed' });
     }
+});
+
+// Session status endpoint for debugging
+router.get('/status', (req, res) => {
+    res.json({
+        sessionID: req.sessionID,
+        hasSession: !!req.session,
+        hasToken: !!req.session?.token,
+        hasUser: !!req.session?.user,
+        user: req.session?.user || null,
+        environment: process.env.NODE_ENV,
+        timestamp: new Date().toISOString()
+    });
 });
 
 // Logout with cache cleanup
