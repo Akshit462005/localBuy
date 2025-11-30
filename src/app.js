@@ -2,8 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
+const https = require('https');
+const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HTTPS_PORT = process.env.HTTPS_PORT || 3443;
 
 // Redis setup (optional - will fall back to memory store if Redis fails)
 let redisStore = null;
@@ -70,7 +73,7 @@ const pool = new Pool({
     host: process.env.POSTGRES_HOST,
     port: parseInt(process.env.POSTGRES_PORT || 5432),
     database: process.env.POSTGRES_DB,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    ssl: { rejectUnauthorized: false } // Enable SSL for Aiven
 });
 
 // Middleware
@@ -153,12 +156,44 @@ function createApp() {
     return app;
 }
 
+// SSL Certificate configuration
+function getSSLOptions() {
+    try {
+        const sslPath = path.join(__dirname, '..', 'ssl');
+        const keyPath = path.join(sslPath, 'key.pem');
+        const certPath = path.join(sslPath, 'cert.pem');
+        
+        if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+            return {
+                key: fs.readFileSync(keyPath),
+                cert: fs.readFileSync(certPath)
+            };
+        }
+    } catch (error) {
+        console.warn('SSL certificates not found, running HTTP only');
+    }
+    return null;
+}
+
 // Start server only if not in test environment
 if (process.env.NODE_ENV !== 'test') {
+    const sslOptions = getSSLOptions();
+    
+    // Start HTTP server
     app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
+        console.log(`🚀 HTTP Server is running on http://localhost:${PORT}`);
         initDb();
     });
+    
+    // Start HTTPS server if SSL certificates are available
+    if (sslOptions) {
+        https.createServer(sslOptions, app).listen(HTTPS_PORT, () => {
+            console.log(`🔒 HTTPS Server is running on https://localhost:${HTTPS_PORT}`);
+            console.log('✅ SSL/TLS encryption enabled');
+        });
+    } else {
+        console.log('⚠️  SSL certificates not found. Run: node scripts/generate-ssl-cert.js');
+    }
 }
 
 module.exports = { createApp, app };
