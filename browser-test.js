@@ -1,176 +1,222 @@
-#!/usr/bin/env node
-
-/**
- * Simple Puppeteer script to demonstrate browser testing of LocalBuy
- * Run with: node browser-test.js
- */
-
 const puppeteer = require('puppeteer');
-const path = require('path');
-const fs = require('fs');
 
-async function runBrowserTest() {
-  console.log('🚀 Starting LocalBuy Browser Test...\n');
+async function runBrowserTests() {
+  console.log('🎭 Starting LocalBuy Browser Tests...\n');
   
-  let browser;
+  const isDebugMode = process.argv.includes('--debug');
+  
+  const browser = await puppeteer.launch({
+    headless: !isDebugMode,
+    slowMo: isDebugMode ? 100 : 0,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-web-security',
+      '--allow-running-insecure-content',
+      '--ignore-certificate-errors',
+      '--ignore-ssl-errors'
+    ]
+  });
+  
+  const page = await browser.newPage();
+  let testsPassed = 0;
+  let testsFailed = 0;
+  
   try {
-    // Launch browser
-    console.log('📱 Launching browser...');
-    browser = await puppeteer.launch({
-      headless: process.env.HEADLESS !== 'false', // Set HEADLESS=false to see browser
-      slowMo: process.env.SLOWMO ? parseInt(process.env.SLOWMO) : 500, // Slow down actions
-      devtools: process.env.DEVTOOLS === 'true',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage'
-      ]
-    });
-
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 720 });
-    
-    console.log('✅ Browser ready!\n');
-
-    // Test 1: Load homepage
-    console.log('🏠 Test 1: Loading homepage...');
-    const baseURL = 'http://localhost:3000';
-    
-    const response = await page.goto(baseURL, { 
-      waitUntil: 'networkidle2',
-      timeout: 30000 
-    });
-    
-    console.log(`   📄 Status: ${response.status()}`);
-    
-    const title = await page.title();
-    console.log(`   📋 Title: "${title}"`);
-    
-    const url = page.url();
-    console.log(`   🌐 URL: ${url}`);
-    
-    // Ensure screenshots directory exists
-    const screenshotDir = path.join(__dirname, 'screenshots');
-    if (!fs.existsSync(screenshotDir)) {
-      fs.mkdirSync(screenshotDir, { recursive: true });
+    // Test 1: HTTP Connection
+    console.log('🌐 Testing HTTP connection...');
+    try {
+      await page.goto('http://localhost:3000', { waitUntil: 'networkidle2', timeout: 10000 });
+      const title = await page.title();
+      console.log(`✅ HTTP connection successful - Title: ${title}`);
+      testsPassed++;
+    } catch (error) {
+      console.log('❌ HTTP connection failed:', error.message);
+      testsFailed++;
     }
     
-    await page.screenshot({ 
-      path: path.join(screenshotDir, 'homepage.png'),
-      fullPage: true 
-    });
-    console.log('   📸 Screenshot saved: screenshots/homepage.png');
-    
-    if (response.status() === 200) {
-      console.log('   ✅ Homepage loaded successfully!\n');
-    } else {
-      console.log('   ❌ Homepage failed to load\n');
-      return;
-    }
-
-    // Test 2: Check for navigation elements
-    console.log('🧭 Test 2: Checking navigation...');
-    
-    const navElements = await page.evaluate(() => {
-      const links = Array.from(document.querySelectorAll('a'));
-      return links.map(link => ({
-        text: link.textContent.trim(),
-        href: link.href
-      })).filter(link => link.text && link.href);
-    });
-    
-    console.log(`   🔗 Found ${navElements.length} navigation links:`);
-    navElements.slice(0, 5).forEach(link => {
-      console.log(`      "${link.text}" → ${link.href}`);
-    });
-    if (navElements.length > 5) {
-      console.log(`      ... and ${navElements.length - 5} more links`);
+    // Test 2: HTTPS Connection
+    console.log('🔒 Testing HTTPS connection...');
+    try {
+      await page.goto('https://localhost:3443', { waitUntil: 'networkidle2', timeout: 10000 });
+      const title = await page.title();
+      console.log(`✅ HTTPS connection successful - Title: ${title}`);
+      testsPassed++;
+    } catch (error) {
+      console.log('❌ HTTPS connection failed:', error.message);
+      testsFailed++;
     }
     
-    // Test 3: Look for login functionality
-    console.log('\n🔐 Test 3: Looking for authentication...');
-    
-    const authLinks = navElements.filter(link => 
-      link.text.toLowerCase().includes('login') || 
-      link.text.toLowerCase().includes('register') ||
-      link.text.toLowerCase().includes('sign')
-    );
-    
-    if (authLinks.length > 0) {
-      console.log('   ✅ Found authentication links:');
-      authLinks.forEach(link => {
-        console.log(`      "${link.text}" → ${link.href}`);
-      });
-      
-      // Try to navigate to login page
-      const loginLink = authLinks.find(link => 
-        link.text.toLowerCase().includes('login')
-      );
-      
-      if (loginLink) {
-        console.log(`\n   🔗 Navigating to: ${loginLink.text}`);
-        await page.goto(loginLink.href, { waitUntil: 'networkidle2' });
-        
-        await page.screenshot({ 
-          path: path.join(screenshotDir, 'login-page.png'),
-          fullPage: true 
-        });
-        console.log('   📸 Login page screenshot saved');
-        
-        const loginTitle = await page.title();
-        console.log(`   📋 Login page title: "${loginTitle}"`);
-        console.log('   ✅ Successfully navigated to login page!');
+    // Test 3: Registration Page
+    console.log('📝 Testing registration page...');
+    try {
+      await page.goto('http://localhost:3000/auth/register', { waitUntil: 'networkidle2' });
+      await page.waitForSelector('form', { timeout: 5000 });
+      const formExists = await page.$('form') !== null;
+      if (formExists) {
+        console.log('✅ Registration page loaded with form');
+        testsPassed++;
+      } else {
+        throw new Error('Registration form not found');
       }
-    } else {
-      console.log('   ⚠️ No authentication links found');
+    } catch (error) {
+      console.log('❌ Registration page test failed:', error.message);
+      testsFailed++;
     }
-
-    // Test 4: Check page structure
-    console.log('\n🏗️ Test 4: Analyzing page structure...');
     
-    const pageInfo = await page.evaluate(() => {
-      return {
-        headings: Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6')).map(h => ({
-          tag: h.tagName,
-          text: h.textContent.trim()
-        })),
-        forms: document.querySelectorAll('form').length,
-        inputs: document.querySelectorAll('input').length,
-        buttons: document.querySelectorAll('button').length,
-        images: document.querySelectorAll('img').length
-      };
-    });
+    // Test 4: Login Page
+    console.log('🔑 Testing login page...');
+    try {
+      await page.goto('http://localhost:3000/auth/login', { waitUntil: 'networkidle2' });
+      await page.waitForSelector('form', { timeout: 5000 });
+      const formExists = await page.$('form') !== null;
+      if (formExists) {
+        console.log('✅ Login page loaded with form');
+        testsPassed++;
+      } else {
+        throw new Error('Login form not found');
+      }
+    } catch (error) {
+      console.log('❌ Login page test failed:', error.message);
+      testsFailed++;
+    }
     
-    console.log(`   📊 Page contains:`);
-    console.log(`      ${pageInfo.headings.length} headings`);
-    console.log(`      ${pageInfo.forms} forms`);
-    console.log(`      ${pageInfo.inputs} input fields`);
-    console.log(`      ${pageInfo.buttons} buttons`);
-    console.log(`      ${pageInfo.images} images`);
-    
-    if (pageInfo.headings.length > 0) {
-      console.log(`   📋 Main headings:`);
-      pageInfo.headings.slice(0, 3).forEach(h => {
-        console.log(`      ${h.tag}: "${h.text}"`);
+    // Test 5: Performance Testing
+    console.log('⚡ Testing page performance...');
+    try {
+      const response = await page.goto('http://localhost:3000', { waitUntil: 'networkidle2' });
+      
+      const performanceMetrics = await page.evaluate(() => {
+        const navigation = performance.getEntriesByType('navigation')[0];
+        return {
+          loadTime: Math.round(navigation.loadEventEnd - navigation.navigationStart),
+          domContentLoaded: Math.round(navigation.domContentLoadedEventEnd - navigation.navigationStart),
+          responseTime: Math.round(navigation.responseEnd - navigation.requestStart)
+        };
       });
+      
+      console.log(`✅ Performance metrics:`);
+      console.log(`   - Load Time: ${performanceMetrics.loadTime}ms`);
+      console.log(`   - DOM Content Loaded: ${performanceMetrics.domContentLoaded}ms`);
+      console.log(`   - Response Time: ${performanceMetrics.responseTime}ms`);
+      
+      if (performanceMetrics.loadTime < 5000) {
+        testsPassed++;
+      } else {
+        console.log('⚠️  Page load time exceeds 5 seconds');
+        testsFailed++;
+      }
+    } catch (error) {
+      console.log('❌ Performance test failed:', error.message);
+      testsFailed++;
     }
-
-    console.log('\n🎉 All tests completed successfully!');
-    console.log('\n📁 Check the screenshots/ folder to see captured images');
-    console.log('\n💡 To run with visible browser: HEADLESS=false node browser-test.js');
-    console.log('💡 To run slower: SLOWMO=2000 node browser-test.js');
+    
+    // Test 6: Mobile Responsiveness
+    console.log('📱 Testing mobile responsiveness...');
+    try {
+      await page.setViewport({ width: 375, height: 667 }); // iPhone SE
+      await page.goto('http://localhost:3000', { waitUntil: 'networkidle2' });
+      
+      const isMobileViewport = await page.evaluate(() => window.innerWidth === 375);
+      if (isMobileViewport) {
+        console.log('✅ Mobile viewport test passed');
+        testsPassed++;
+      } else {
+        throw new Error('Mobile viewport not properly set');
+      }
+    } catch (error) {
+      console.log('❌ Mobile responsiveness test failed:', error.message);
+      testsFailed++;
+    }
+    
+    // Test 7: Screenshot Capture
+    console.log('📸 Capturing screenshots...');
+    try {
+      // Create screenshots directory if it doesn't exist
+      const fs = require('fs');
+      if (!fs.existsSync('./screenshots')) {
+        fs.mkdirSync('./screenshots');
+      }
+      
+      // Desktop screenshot
+      await page.setViewport({ width: 1920, height: 1080 });
+      await page.goto('http://localhost:3000', { waitUntil: 'networkidle2' });
+      await page.screenshot({
+        path: './screenshots/desktop-homepage.png',
+        fullPage: true
+      });
+      
+      // Mobile screenshot
+      await page.setViewport({ width: 375, height: 667 });
+      await page.goto('http://localhost:3000', { waitUntil: 'networkidle2' });
+      await page.screenshot({
+        path: './screenshots/mobile-homepage.png',
+        fullPage: true
+      });
+      
+      console.log('✅ Screenshots captured successfully');
+      console.log('   - Desktop: ./screenshots/desktop-homepage.png');
+      console.log('   - Mobile: ./screenshots/mobile-homepage.png');
+      testsPassed++;
+    } catch (error) {
+      console.log('❌ Screenshot capture failed:', error.message);
+      testsFailed++;
+    }
     
   } catch (error) {
-    console.error('\n❌ Test failed:', error.message);
-    console.error('\n🔍 Make sure your LocalBuy server is running on http://localhost:3000');
-    console.error('   Run: npm run dev');
+    console.error('💥 Critical error during testing:', error);
   } finally {
-    if (browser) {
-      console.log('\n🔒 Closing browser...');
-      await browser.close();
+    await browser.close();
+    
+    // Test Summary
+    console.log('\n📊 Test Summary:');
+    console.log('================');
+    console.log(`✅ Tests Passed: ${testsPassed}`);
+    console.log(`❌ Tests Failed: ${testsFailed}`);
+    console.log(`📈 Success Rate: ${Math.round((testsPassed / (testsPassed + testsFailed)) * 100)}%`);
+    
+    if (testsFailed === 0) {
+      console.log('\n🎉 All tests passed! LocalBuy is working correctly.');
+    } else {
+      console.log('\n⚠️  Some tests failed. Please check the server and try again.');
     }
   }
 }
 
-// Run the test
-runBrowserTest().catch(console.error);
+// Handle errors gracefully
+process.on('unhandledRejection', (error) => {
+  console.error('❌ Unhandled promise rejection:', error.message);
+  process.exit(1);
+});
+
+// Check if server is running before starting tests
+async function checkServer() {
+  try {
+    const response = await fetch('http://localhost:3000');
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
+}
+
+// Main execution
+(async () => {
+  console.log('🔍 Checking if LocalBuy server is running...');
+  
+  // Note: Using a simple approach since fetch might not be available in Node.js < 18
+  // In production, you might want to use a library like axios or node-fetch
+  
+  try {
+    await runBrowserTests();
+  } catch (error) {
+    if (error.message.includes('ECONNREFUSED') || error.message.includes('net::ERR_CONNECTION_REFUSED')) {
+      console.log('❌ Server not running. Please start the LocalBuy server first:');
+      console.log('   npm run dev');
+      console.log('   or');
+      console.log('   .\\start-with-cache.ps1');
+    } else {
+      console.error('❌ Error running browser tests:', error.message);
+    }
+    process.exit(1);
+  }
+})();
