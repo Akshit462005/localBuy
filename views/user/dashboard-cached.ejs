@@ -7,6 +7,205 @@
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/cache.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        /* Wishlist Section Styles */
+        .wishlist-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .wishlist-section h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .wishlist-count {
+            background: #dc3545;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .wishlist-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .wishlist-item {
+            position: relative;
+        }
+        
+        .remove-from-wishlist {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s;
+            z-index: 2;
+        }
+        
+        .remove-from-wishlist:hover {
+            background: rgba(220, 53, 69, 1);
+        }
+        
+        .wishlist-btn.in-wishlist {
+            background: #dc3545 !important;
+            color: white !important;
+        }
+        
+        .wishlist-btn.in-wishlist i {
+            color: white !important;
+        }
+        
+        .added-date {
+            font-size: 0.8em;
+            color: #666;
+            margin: 5px 0;
+        }
+        
+        /* Wishlist Navigation Styles */
+        .wishlist-badge {
+            background: #dc3545;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.75em;
+            font-weight: bold;
+            margin-left: 5px;
+            min-width: 18px;
+            text-align: center;
+            display: inline-block;
+        }
+        
+        .wishlist-nav.active {
+            background: #dc3545;
+            color: white;
+        }
+        
+        /* Wishlist Panel */
+        .wishlist-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: white;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+        }
+        
+        .wishlist-panel.open {
+            right: 0;
+        }
+        
+        .wishlist-panel-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .wishlist-panel-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .wishlist-panel-content {
+            padding: 20px;
+        }
+        
+        .wishlist-panel-item {
+            display: flex;
+            padding: 15px 0;
+            border-bottom: 1px solid #eee;
+            gap: 15px;
+        }
+        
+        .wishlist-panel-item img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        
+        .wishlist-panel-item-info {
+            flex: 1;
+        }
+        
+        .wishlist-panel-item-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        .wishlist-panel-item-price {
+            color: #dc3545;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .wishlist-panel-item-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .wishlist-panel-item-actions button {
+            padding: 5px 10px;
+            font-size: 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .wishlist-panel-empty {
+            text-align: center;
+            color: #666;
+            padding: 40px 20px;
+        }
+        
+        .wishlist-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        
+        .wishlist-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
 </head>
 <body>
     <div class="loading-overlay" id="loadingOverlay">
@@ -24,6 +223,11 @@
                     <i class="fas fa-shopping-cart"></i>
                     <span>Cart</span>
                     <span class="cart-badge" id="cart-badge">0</span>
+                </a>
+                <a href="#" class="nav-link wishlist-nav" onclick="toggleWishlistPanel(event)">
+                    <i class="fas fa-heart"></i>
+                    <span>Wishlist</span>
+                    <span class="wishlist-badge" id="wishlist-nav-badge">0</span>
                 </a>
                 <a href="/user/orders" class="nav-link">
                     <i class="fas fa-box"></i>
@@ -73,6 +277,22 @@
         <div class="recently-viewed-section" id="recentlyViewedSection" style="display: none;">
             <h3><i class="fas fa-history"></i> Recently Viewed</h3>
             <div class="recently-viewed-grid" id="recentlyViewedGrid">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+
+        <!-- Wishlist Section -->
+        <div class="wishlist-section" id="wishlistSection" style="display: none;">
+            <h3><i class="fas fa-heart"></i> My Wishlist <span class="wishlist-count" id="wishlistCount">0</span></h3>
+            <div class="wishlist-grid" id="wishlistGrid">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+
+        <!-- Wishlist Section -->
+        <div class="wishlist-section" id="wishlistSection" style="display: none;">
+            <h3><i class="fas fa-heart"></i> My Wishlist <span class="wishlist-count" id="wishlistCount">0</span></h3>
+            <div class="wishlist-grid" id="wishlistGrid">
                 <!-- Dynamic content -->
             </div>
         </div>
@@ -185,6 +405,10 @@
                                     <i class="fas fa-shopping-cart"></i>
                                     <span>Add to Cart</span>
                                 </button>
+                                <button class="btn secondary wishlist-btn" onclick="toggleWishlist(<%= product.id %>, this)" data-product-id="<%= product.id %>">
+                                    <i class="far fa-heart"></i>
+                                    <span class="wishlist-text">Save</span>
+                                </button>
                                 <button class="btn secondary quick-buy-btn" onclick="quickBuy(<%= product.id %>)">
                                     <i class="fas fa-bolt"></i>
                                     Quick Buy
@@ -202,6 +426,18 @@
             </div>
         </div>
     </main>
+
+    <!-- Wishlist Panel -->
+    <div class="wishlist-overlay" id="wishlistOverlay" onclick="closeWishlistPanel()"></div>
+    <div class="wishlist-panel" id="wishlistPanel">
+        <div class="wishlist-panel-header">
+            <h3><i class="fas fa-heart"></i> My Wishlist</h3>
+            <button class="wishlist-panel-close" onclick="closeWishlistPanel()">×</button>
+        </div>
+        <div class="wishlist-panel-content" id="wishlistPanelContent">
+            <!-- Dynamic content -->
+        </div>
+    </div>
 
     <!-- Quick View Modal -->
     <div id="quickViewModal" class="modal">
@@ -286,12 +522,45 @@
         let filteredProducts = [];
         let isGridView = true;
 
+        // Notification function
+        function showNotification(message, type = 'info', duration = 3000) {
+            const container = document.getElementById('notification-container') || createNotificationContainer();
+            
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.innerHTML = `
+                <span class="notification-message">${message}</span>
+                <button class="notification-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            
+            container.appendChild(notification);
+            
+            // Auto-remove after duration
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, duration);
+        }
+
+        function createNotificationContainer() {
+            let container = document.getElementById('notification-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'notification-container';
+                container.className = 'notification-container';
+                document.body.appendChild(container);
+            }
+            return container;
+        }
+
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             initializeDashboard();
             setupEventListeners();
             loadRecentlyViewed();
             updateWishlistDisplay();
+            updateWishlistNavBadge();
             restoreUserPreferences();
             hideLoadingOverlay();
             
@@ -476,42 +745,230 @@
             }, 500);
         }
 
-        function toggleWishlist(productId) {
-            const wishlist = window.cache.get('wishlist') || [];
-            const index = wishlist.indexOf(productId);
-            
-            if (index > -1) {
-                wishlist.splice(index, 1);
-                window.userSessionManager.showNotification('Removed from wishlist', 'info');
+        function toggleWishlist(productId, buttonEl) {
+            const product = allProducts.find(p => p.id === productId);
+            if (!product || !window.persistentCart) return;
+
+            const isInWishlist = window.persistentCart.isInWishlist(productId);
+            const icon = buttonEl.querySelector('i');
+            const text = buttonEl.querySelector('.wishlist-text');
+
+            if (isInWishlist) {
+                // Remove from wishlist
+                window.persistentCart.removeFromWishlist(productId);
+                icon.className = 'far fa-heart';
+                text.textContent = 'Save';
+                buttonEl.classList.remove('in-wishlist');
+                showNotification('Removed from wishlist', 'info');
             } else {
-                wishlist.push(productId);
-                window.userSessionManager.showNotification('Added to wishlist', 'success');
+                // Add to wishlist
+                window.persistentCart.addToWishlist({
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    image: product.image_url,
+                    shopkeeper_name: product.shopkeeper_name
+                });
+                icon.className = 'fas fa-heart';
+                text.textContent = 'Saved';
+                buttonEl.classList.add('in-wishlist');
+                showNotification('Added to wishlist', 'success');
             }
-            
-            window.cache.set('wishlist', wishlist, 30 * 24 * 60); // 30 days
+
             updateWishlistDisplay();
+            updateWishlistNavBadge();
         }
 
         function updateWishlistDisplay() {
-            const wishlist = window.cache.get('wishlist') || [];
-            document.getElementById('wishlistCount').textContent = wishlist.length;
-            
-            // Update wishlist button states
-            const wishlistBtns = document.querySelectorAll('.wishlist-btn');
-            wishlistBtns.forEach(btn => {
-                const productId = parseInt(btn.getAttribute('data-product-id'));
-                const icon = btn.querySelector('i');
+            if (!window.persistentCart) return;
+
+            const wishlist = window.persistentCart.getWishlist();
+            const wishlistSection = document.getElementById('wishlistSection');
+            const wishlistGrid = document.getElementById('wishlistGrid');
+            const wishlistCount = document.getElementById('wishlistCount');
+
+            // Update count
+            wishlistCount.textContent = wishlist.length;
+
+            if (wishlist.length === 0) {
+                wishlistSection.style.display = 'none';
+                return;
+            }
+
+            wishlistSection.style.display = 'block';
+
+            // Generate wishlist HTML
+            wishlistGrid.innerHTML = wishlist.map(item => `
+                <div class="product-card wishlist-item" data-product-id="${item.id}">
+                    <div class="product-image">
+                        <img src="${item.image || '/images/placeholder.jpg'}" alt="${item.name}" 
+                             onerror="this.src='/images/placeholder.jpg'">
+                        <button class="remove-from-wishlist" onclick="removeFromWishlistAndUpdate(${item.id})" 
+                                title="Remove from wishlist">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="product-info">
+                        <h4>${item.name}</h4>
+                        <p class="product-price">₹${parseFloat(item.price).toFixed(2)}</p>
+                        <p class="product-shop">by ${item.shopkeeper_name || 'Unknown'}</p>
+                        <p class="added-date">Added ${new Date(item.addedAt).toLocaleDateString()}</p>
+                    </div>
+                    <div class="product-actions">
+                        <button class="btn small primary" onclick="addToCartFromWishlist(${item.id})">
+                            <i class="fas fa-cart-plus"></i>
+                            Add to Cart
+                        </button>
+                        <button class="btn small secondary" onclick="showQuickView(${item.id})">
+                            <i class="fas fa-eye"></i>
+                            View
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            // Update product buttons to show wishlist status
+            updateProductWishlistButtons();
+        }
+
+        function updateProductWishlistButtons() {
+            if (!window.persistentCart) return;
+
+            document.querySelectorAll('.wishlist-btn').forEach(button => {
+                const productId = parseInt(button.dataset.productId);
+                const isInWishlist = window.persistentCart.isInWishlist(productId);
+                const icon = button.querySelector('i');
+                const text = button.querySelector('.wishlist-text');
                 
-                if (wishlist.includes(productId)) {
-                    icon.classList.remove('far');
-                    icon.classList.add('fas');
-                    btn.classList.add('active');
+                if (isInWishlist) {
+                    icon.className = 'fas fa-heart';
+                    text.textContent = 'Saved';
+                    button.classList.add('in-wishlist');
                 } else {
-                    icon.classList.remove('fas');
-                    icon.classList.add('far');
-                    btn.classList.remove('active');
+                    icon.className = 'far fa-heart';
+                    text.textContent = 'Save';
+                    button.classList.remove('in-wishlist');
                 }
             });
+        }
+
+        function addToCartFromWishlist(productId) {
+            const product = allProducts.find(p => p.id === productId);
+            if (product) {
+                addToCart(productId, document.createElement('button'));
+                showNotification('Added to cart from wishlist', 'success');
+            }
+        }
+
+        function removeFromWishlistAndUpdate(productId) {
+            if (window.persistentCart) {
+                window.persistentCart.removeFromWishlist(productId);
+                updateWishlistDisplay();
+                updateProductWishlistButtons();
+                updateWishlistNavBadge();
+                updateWishlistPanel();
+                showNotification('Removed from wishlist', 'info');
+            }
+        }
+
+        // Wishlist Panel Functions
+        function toggleWishlistPanel(event) {
+            event.preventDefault();
+            const panel = document.getElementById('wishlistPanel');
+            const overlay = document.getElementById('wishlistOverlay');
+            
+            if (panel.classList.contains('open')) {
+                closeWishlistPanel();
+            } else {
+                openWishlistPanel();
+            }
+        }
+
+        function openWishlistPanel() {
+            const panel = document.getElementById('wishlistPanel');
+            const overlay = document.getElementById('wishlistOverlay');
+            const navButton = document.querySelector('.wishlist-nav');
+            
+            panel.classList.add('open');
+            overlay.classList.add('open');
+            navButton.classList.add('active');
+            
+            updateWishlistPanel();
+        }
+
+        function closeWishlistPanel() {
+            const panel = document.getElementById('wishlistPanel');
+            const overlay = document.getElementById('wishlistOverlay');
+            const navButton = document.querySelector('.wishlist-nav');
+            
+            panel.classList.remove('open');
+            overlay.classList.remove('open');
+            navButton.classList.remove('active');
+        }
+
+        function updateWishlistPanel() {
+            if (!window.persistentCart) return;
+
+            const wishlist = window.persistentCart.getWishlist();
+            const content = document.getElementById('wishlistPanelContent');
+
+            if (wishlist.length === 0) {
+                content.innerHTML = `
+                    <div class="wishlist-panel-empty">
+                        <i class="fas fa-heart" style="font-size: 48px; color: #ddd; margin-bottom: 15px;"></i>
+                        <p>Your wishlist is empty</p>
+                        <p>Save items you love to find them easily later!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            content.innerHTML = wishlist.map(item => `
+                <div class="wishlist-panel-item">
+                    <img src="${item.image || '/images/placeholder.jpg'}" alt="${item.name}" 
+                         onerror="this.src='/images/placeholder.jpg'">
+                    <div class="wishlist-panel-item-info">
+                        <div class="wishlist-panel-item-name">${item.name}</div>
+                        <div class="wishlist-panel-item-price">₹${parseFloat(item.price).toFixed(2)}</div>
+                        <div class="wishlist-panel-item-actions">
+                            <button class="btn small primary" onclick="addToCartFromWishlistPanel(${item.id})">
+                                <i class="fas fa-cart-plus"></i> Add to Cart
+                            </button>
+                            <button class="btn small secondary" onclick="removeFromWishlistPanel(${item.id})">
+                                <i class="fas fa-trash"></i> Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateWishlistNavBadge() {
+            if (!window.persistentCart) return;
+            
+            const wishlist = window.persistentCart.getWishlist();
+            const badge = document.getElementById('wishlist-nav-badge');
+            badge.textContent = wishlist.length;
+            badge.style.display = wishlist.length > 0 ? 'inline-block' : 'none';
+        }
+
+        function addToCartFromWishlistPanel(productId) {
+            const product = allProducts.find(p => p.id === productId);
+            if (product) {
+                addToCart(productId, document.createElement('button'));
+                showNotification('Added to cart from wishlist', 'success');
+            }
+        }
+
+        function removeFromWishlistPanel(productId) {
+            if (window.persistentCart) {
+                window.persistentCart.removeFromWishlist(productId);
+                updateWishlistDisplay();
+                updateProductWishlistButtons();
+                updateWishlistNavBadge();
+                updateWishlistPanel();
+                showNotification('Removed from wishlist', 'info');
+            }
         }
 
         function loadRecentlyViewed() {
