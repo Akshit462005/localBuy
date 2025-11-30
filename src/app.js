@@ -31,11 +31,12 @@ try {
         redisClient = createClient({
             socket: {
                 host: process.env.REDIS_HOST || 'localhost',
-                port: process.env.REDIS_PORT || 6379,
-                tls: process.env.REDIS_TLS === 'true' // Handle TLS if needed
+                port: parseInt(process.env.REDIS_PORT) || 6379,
+                tls: process.env.REDIS_TLS === 'true'
             },
+            username: process.env.REDIS_USERNAME || 'default',
             password: process.env.REDIS_PASSWORD || undefined,
-            database: process.env.REDIS_DB || 0
+            database: parseInt(process.env.REDIS_DB) || 0
         });
     }
 
@@ -82,21 +83,45 @@ app.use(express.static(path.join(process.cwd(), 'public')));
 // Session configuration
 const sessionConfig = {
     secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
-    resave: false,
+    resave: true, // Force session save on Vercel
     saveUninitialized: false,
+    name: 'localbuy.sid',
     cookie: {
-        secure: process.env.NODE_ENV === 'production', // Requires trust proxy!
+        secure: process.env.NODE_ENV === 'production' && !process.env.DISABLE_SECURE_COOKIE,
         httpOnly: true,
-        maxAge: 1000 * 60 * 60 * 24 // 24 hours
+        maxAge: 1000 * 60 * 60 * 24, // 24 hours
+        sameSite: 'lax'
     }
 };
 
 // Apply store if initialized (Note: This might be null if Redis connects slowly, which is fine)
 if (redisStore) {
     sessionConfig.store = redisStore;
+    console.log('✅ Using Redis session store');
+} else {
+    console.log('⚠️  Using memory session store - sessions may not persist on Vercel!');
+    // For Vercel, we need to be more aggressive with session saving
+    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+        sessionConfig.resave = true;
+        console.log('🔄 Enabled aggressive session saving for serverless environment');
+    }
 }
 
 app.use(session(sessionConfig));
+
+// Session debugging middleware (only in development or when DEBUG is enabled)
+if (process.env.NODE_ENV !== 'production' || process.env.DEBUG_SESSIONS === 'true') {
+    app.use((req, res, next) => {
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+        console.log('Session ID:', req.sessionID);
+        console.log('Has token:', !!req.session?.token);
+        console.log('Has user:', !!req.session?.user);
+        if (req.session?.user) {
+            console.log('User role:', req.session.user.role);
+        }
+        next();
+    });
+}
 
 // Set view engine
 app.set('view engine', 'ejs');
