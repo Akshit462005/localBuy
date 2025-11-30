@@ -21,11 +21,11 @@
         <div class="form-box">
             <h2>Edit Product</h2>
             <% if (locals.error) { %>
-                <div class="error-message">
+                <div class="alert alert-error">
                     <%= error %>
                 </div>
             <% } %>
-            <form action="/shopkeeper/edit-product/<%= product.id %>" method="POST" enctype="multipart/form-data">
+            <form action="/shopkeeper/edit-product/<%= product.id %>" method="POST">
                 <div class="form-group">
                     <label for="name">Product Name</label>
                     <input type="text" id="name" name="name" value="<%= product.name %>" required>
@@ -39,14 +39,28 @@
                     <input type="number" id="price" name="price" step="0.01" value="<%= product.price %>" required>
                 </div>
                 <div class="form-group">
-                    <label for="image">Product Image</label>
-                    <input type="file" id="image" name="image" accept="image/*">
+                    <label>Product Image</label>
                     <% if (product.image_url) { %>
                         <div class="current-image">
                             <p>Current image:</p>
-                            <img src="<%= product.image_url %>" alt="<%= product.name %>" style="max-width: 200px; margin-top: 10px;">
+                            <img src="<%= product.image_url %>" alt="<%= product.name %>" style="max-width: 200px; margin-top: 10px; border-radius: 8px;">
                             <input type="hidden" name="existing_image" value="<%= product.image_url %>">
                         </div>
+                        <div class="image-options">
+                            <label>
+                                <input type="radio" name="image_action" value="keep" checked> Keep current image
+                            </label>
+                            <label>
+                                <input type="radio" name="image_action" value="change"> Change to new image URL
+                            </label>
+                        </div>
+                        <div id="new-image-url" style="display: none;">
+                            <input type="url" name="image_url" placeholder="Enter new image URL">
+                            <small class="help-text">Images load directly from URL - Pexels, Google Drive, Imgur, or direct image URLs</small>
+                        </div>
+                    <% } else { %>
+                        <input type="url" name="image_url" placeholder="Enter image URL">
+                        <small class="help-text">Images load directly from URL - Pexels, Google Drive, Imgur, or direct image URLs</small>
                     <% } %>
                 </div>
                 <div class="form-actions">
@@ -56,6 +70,40 @@
             </form>
         </div>
     </main>
+    
+    <script>
+        // Handle image option radio buttons
+        const radioButtons = document.querySelectorAll('input[name="image_action"]');
+        const newImageUrlDiv = document.getElementById('new-image-url');
+        
+        radioButtons.forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.value === 'change') {
+                    newImageUrlDiv.style.display = 'block';
+                    document.querySelector('input[name="keep_existing_image"]')?.remove();
+                } else {
+                    newImageUrlDiv.style.display = 'none';
+                    // Add hidden input to keep existing image
+                    if (!document.querySelector('input[name="keep_existing_image"]')) {
+                        const hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = 'keep_existing_image';
+                        hiddenInput.value = 'true';
+                        document.querySelector('form').appendChild(hiddenInput);
+                    }
+                }
+            });
+        });
+        
+        // Initialize the form
+        if (document.querySelector('input[name="image_action"][value="keep"]')?.checked) {
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'keep_existing_image';
+            hiddenInput.value = 'true';
+            document.querySelector('form').appendChild(hiddenInput);
+        }
+    </script>
 
     <footer>
         <p>&copy; 2025 LocalBuy. All rights reserved.</p>

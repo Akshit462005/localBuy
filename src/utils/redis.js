@@ -2,28 +2,32 @@ const { createClient } = require('redis');
 
 class RedisCache {
     constructor() {
-        // Prefer a single REDIS_URL if provided (supports username/password and TLS)
-        // Otherwise build options from individual env vars.
+        console.log('🔧 Initializing Redis Cache Client...');
+        
+        // Use same configuration as app.js for consistency
         const redisUrl = process.env.REDIS_URL;
         if (redisUrl) {
+            console.log('📡 Using REDIS_URL for connection');
             this.client = createClient({ url: redisUrl });
         } else {
-            // If username is provided, construct a URL so ACL auth works reliably
             const username = process.env.REDIS_USERNAME;
             const password = process.env.REDIS_PASSWORD;
             const host = process.env.REDIS_HOST || 'localhost';
             const port = process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379;
             const tls = process.env.REDIS_TLS === 'true';
-
+            const db = process.env.REDIS_DB ? parseInt(process.env.REDIS_DB, 10) : 0;
+            
+            console.log('📡 Redis Config:', { host, port, username, tls, db });
+            
             if (username) {
                 const scheme = tls ? 'rediss' : 'redis';
-                // encode credentials
                 const userEnc = encodeURIComponent(username);
                 const passEnc = password ? encodeURIComponent(password) : '';
-                const url = `${scheme}://${userEnc}:${passEnc}@${host}:${port}`;
+                const url = `${scheme}://${userEnc}:${passEnc}@${host}:${port}/${db}`;
+                console.log('🔗 Using URL-based connection (with DB):', url.replace(passEnc, '***'));
                 this.client = createClient({ url });
             } else {
-                // socket options with password and DB index
+                console.log('🔗 Using socket-based connection');
                 this.client = createClient({
                     socket: {
                         host,
@@ -31,7 +35,7 @@ class RedisCache {
                         tls: tls || undefined
                     },
                     password: password || undefined,
-                    database: process.env.REDIS_DB ? parseInt(process.env.REDIS_DB, 10) : 0
+                    database: db
                 });
             }
         }
@@ -47,29 +51,54 @@ class RedisCache {
 
     async connect() {
         try {
-            await this.client.connect();
+            if (!this.client.isOpen) {
+                await this.client.connect();
+                console.log('🔄 Redis cache client connected successfully');
+                
+                // Test the connection
+                await this.client.ping();
+                console.log('🏓 Redis PING successful');
+            }
         } catch (error) {
-            console.error('Failed to connect Redis cache client:', error);
+            console.error('❌ Failed to connect Redis cache client:', error);
+            throw error;
         }
     }
 
     async set(key, value, expireInSeconds = 3600) {
         try {
+            if (!this.client.isOpen) {
+                console.log('Redis client not connected, attempting to connect...');
+                await this.connect();
+            }
+            
             const serializedValue = JSON.stringify(value);
             await this.client.setEx(key, expireInSeconds, serializedValue);
+            console.log(`✅ Redis SET successful: ${key} (expires in ${expireInSeconds}s)`);
             return true;
         } catch (error) {
-            console.error('Redis SET error:', error);
+            console.error('❌ Redis SET error:', error);
             return false;
         }
     }
 
     async get(key) {
         try {
+            if (!this.client.isOpen) {
+                console.log('Redis client not connected for GET, attempting to connect...');
+                await this.connect();
+            }
+            
             const value = await this.client.get(key);
-            return value ? JSON.parse(value) : null;
+            if (value) {
+                console.log(`✅ Redis GET hit: ${key}`);
+                return JSON.parse(value);
+            } else {
+                console.log(`⚪ Redis GET miss: ${key}`);
+                return null;
+            }
         } catch (error) {
-            console.error('Redis GET error:', error);
+            console.error('❌ Redis GET error:', error);
             return null;
         }
     }
@@ -109,6 +138,29 @@ class RedisCache {
             await this.client.disconnect();
         } catch (error) {
             console.error('Redis disconnect error:', error);
+        }
+    }
+
+    // Debug method to get Redis info
+    async getDebugInfo() {
+        try {
+            if (!this.client.isOpen) {
+                return { connected: false, error: 'Client not connected' };
+            }
+
+            const ping = await this.client.ping();
+            const keys = await this.client.keys('*');
+            const info = await this.client.info('server');
+            
+            return {
+                connected: true,
+                ping,
+                totalKeys: keys.length,
+                keys: keys.slice(0, 10), // First 10 keys
+                serverInfo: info.split('\n').slice(0, 5).join('\n') // First few lines
+            };
+        } catch (error) {
+            return { connected: false, error: error.message };
         }
     }
 }

@@ -102,6 +102,16 @@ router.post('/login', async (req, res) => {
             loginTime: new Date().toISOString()
         };
         
+        // Also set a backup cookie for Vercel compatibility
+        res.cookie('auth_token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 1000 * 60 * 60 * 24, // 24 hours
+            sameSite: 'lax'
+        });
+        
+        console.log('Login successful - Token set in session and cookie');
+        
         // Save session before redirect to ensure it persists
         req.session.save((err) => {
             if (err) {
@@ -143,8 +153,29 @@ router.get('/status', (req, res) => {
     });
 });
 
+// Redis debug endpoint
+router.get('/redis-debug', async (req, res) => {
+    try {
+        const redisCache = require('../utils/redis');
+        const debugInfo = await redisCache.getDebugInfo();
+        
+        res.json({
+            redis: debugInfo,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        res.json({
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
 // Logout with cache cleanup
 router.get('/logout', (req, res) => {
+    // Clear both session and cookie
+    res.clearCookie('auth_token');
+    
     // API response for cache integration
     if (req.headers.accept?.includes('application/json') || req.query.format === 'json') {
         req.session.destroy((err) => {

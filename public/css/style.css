@@ -4193,3 +4193,122 @@ footer {
         flex-direction: column;
     }
 }
+
+/* Image URL Form Styles */
+.help-text {
+    display: block;
+    font-size: 0.85em;
+    color: var(--text-light);
+    margin-top: 0.25rem;
+    line-height: 1.4;
+}
+
+.alert {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.alert-error {
+    background-color: #fee;
+    color: #c53030;
+    border: 1px solid #feb2b2;
+}
+
+.image-examples {
+    margin-top: 2rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary-color);
+}
+
+.image-examples h3 {
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+.image-examples ul {
+    list-style: none;
+    padding: 0;
+}
+
+.image-examples li {
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.image-examples strong {
+    color: var(--primary-color);
+}
+
+.current-image {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.current-image p {
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.current-image img {
+    max-width: 200px;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.image-options {
+    margin: 1rem 0;
+}
+
+.image-options label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-color);
+}
+
+.image-options input[type="radio"] {
+    margin-right: 0.5rem;
+}
+
+#new-image-url {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.form-group input[type="url"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: var(--transition);
+}
+
+.form-group input[type="url"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.image-examples .note {
+    margin-top: 0.75rem;
+    padding: 0.5rem;
+    background-color: #e8f5e8;
+    color: #2d5a2d;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    border-left: 3px solid var(--accent-color);
+}
