@@ -74,3 +74,5 @@ screenshots/
 # Temporary files
 temp/
 tmp/
+.vercel
+.env*.local

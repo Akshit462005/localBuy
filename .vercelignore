@@ -1,0 +1,16 @@
+node_modules
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+screenshots
+ssl
+tests
+scripts
+*.bat
+*.ps1
+redis.conf
+redis-alt.conf
+CACHE_SETUP_GUIDE.md
+BROWSER_TESTING.md
