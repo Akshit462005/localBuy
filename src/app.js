@@ -5,6 +5,7 @@ const path = require('path');
 const https = require('https');
 const fs = require('fs');
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 const HTTPS_PORT = process.env.HTTPS_PORT || 3443;
 
@@ -79,7 +80,7 @@ const pool = new Pool({
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(path.join(process.cwd(), 'public')));
 
 // Session configuration with Redis store (fallback to memory store)
 const sessionConfig = {
@@ -105,7 +106,7 @@ app.use(session(sessionConfig));
 
 // Set view engine
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, '../views'));
+app.set('views', path.join(process.cwd(), 'views'));
 
 // Add cache middleware for API responses
 app.use('/api', (req, res, next) => {
