@@ -155,7 +155,6 @@ async function initDb() {
 function createApp() {
     return app;
 }
-
 // SSL Certificate configuration
 function getSSLOptions() {
     try {
@@ -175,8 +174,7 @@ function getSSLOptions() {
     return null;
 }
 
-// Start server only if not in test environment
-if (process.env.NODE_ENV !== 'test') {
+if (require.main === module) {
     const sslOptions = getSSLOptions();
     
     // Start HTTP server
@@ -196,4 +194,4 @@ if (process.env.NODE_ENV !== 'test') {
     }
 }
 
-module.exports = { createApp, app };
+module.exports = app;
