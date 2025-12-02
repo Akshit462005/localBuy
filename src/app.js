@@ -121,10 +121,13 @@ if (redisStore) {
     sessionConfig.store = redisStore;
     console.log('✅ Using Redis session store');
 } else {
-    console.log('⚠️  Using memory session store - sessions may not persist on Vercel!');
-    // For Vercel, we need to be more aggressive with session saving
+    console.log('⚠️  Using memory session store with database fallback for cart persistence');
+    // For Vercel/serverless, we need more aggressive session handling
     if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
         sessionConfig.resave = true;
+        sessionConfig.saveUninitialized = true; // Save empty sessions too
+        sessionConfig.rolling = true; // Reset expiry on activity
+        sessionConfig.cookie.maxAge = 1000 * 60 * 60 * 4; // 4 hours for better persistence
         console.log('🔄 Enabled aggressive session saving for serverless environment');
     }
 }
@@ -168,8 +171,68 @@ const userRoutes = require('./routes/user');
 
 app.use('/auth', authRoutes);
 app.use('/shopkeeper', shopkeeperRoutes);
+// Cart sync middleware for user routes (ensures cart persistence on serverless)
+app.use('/user', (req, res, next) => {
+    // Only sync for authenticated user requests
+    if (req.session?.user && (!req.session.cart || req.session.cart.length === 0)) {
+        // Silently sync cart from database if session cart is empty
+        const { Pool } = require('pg');
+        const pool = new Pool({
+            user: process.env.POSTGRES_USER,
+            password: process.env.POSTGRES_PASSWORD,
+            host: process.env.POSTGRES_HOST,
+            port: parseInt(process.env.POSTGRES_PORT || 5432),
+            database: process.env.POSTGRES_DB,
+            ssl: { rejectUnauthorized: false }
+        });
+        
+        pool.query(`
+            SELECT c.quantity, p.id, p.name, p.price, p.image_url, p.description 
+            FROM cart c 
+            JOIN products p ON c.product_id = p.id 
+            WHERE c.user_id = $1
+        `, [req.session.user.id])
+        .then(result => {
+            if (result.rows.length > 0) {
+                req.session.cart = result.rows.map(row => ({
+                    id: row.id,
+                    name: row.name,
+                    price: row.price,
+                    quantity: row.quantity,
+                    image_url: row.image_url,
+                    description: row.description
+                }));
+                console.log('🔄 Auto-synced', result.rows.length, 'cart items from database');
+            }
+        })
+        .catch(err => {
+            console.error('⚠️ Cart sync failed:', err);
+        })
+        .finally(() => {
+            next();
+        });
+    } else {
+        next();
+    }
+});
+
 app.use('/user', userRoutes);
 app.use('/api', require('./routes/api'));
+
+// Health check route
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        session: {
+            id: req.sessionID,
+            hasUser: !!req.session?.user,
+            cartItems: req.session?.cart?.length || 0
+        },
+        redis_connected: !!redisStore,
+        node_env: process.env.NODE_ENV
+    });
+});
 
 // Home route
 app.get('/', (req, res) => {

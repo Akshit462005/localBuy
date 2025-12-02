@@ -76,6 +76,20 @@ router.post('/add-to-cart', auth, isUser, async (req, res) => {
         
         console.log('🛒 Current cart contents:', req.session.cart);
         
+        // Also save to database for persistence on serverless environments
+        pool.query(`
+            INSERT INTO cart (user_id, product_id, quantity) 
+            VALUES ($1, $2, $3)
+            ON CONFLICT (user_id, product_id) 
+            DO UPDATE SET quantity = cart.quantity + 1
+        `, [req.user.id, product.id, 1])
+        .then(() => {
+            console.log('💾 Cart also saved to database');
+        })
+        .catch(dbErr => {
+            console.error('⚠️ Database cart save failed:', dbErr);
+        });
+        
         // Force session save before responding
         req.session.save((err) => {
             if (err) {
@@ -113,61 +127,108 @@ router.post('/add-to-cart', auth, isUser, async (req, res) => {
     }
 });
 
-// View cart with cache support
-router.get('/cart', auth, isUser, (req, res) => {
-    console.log('🛒 GET /cart - Session ID:', req.sessionID);
-    console.log('🛒 GET /cart - Session exists:', !!req.session);
-    console.log('🛒 GET /cart - User in session:', req.session?.user?.name || 'No user');
-    console.log('🛒 GET /cart - Raw cart data:', req.session.cart);
-    
-    const cart = req.session.cart || [];
-    console.log('🛒 GET /cart - Processed cart:', cart);
-    console.log('🛒 GET /cart - Cart items count:', cart.length);
-    
-    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const count = cart.reduce((sum, item) => sum + item.quantity, 0);
-    
-    console.log('🛒 GET /cart - Total calculated:', total);
-    console.log('🛒 GET /cart - Count calculated:', count);
-    
-    // API response for cache integration
-    if (req.headers.accept?.includes('application/json') || req.query.format === 'json') {
-        return res.json({
-            success: true,
-            cart: {
-                items: cart,
-                total: total,
-                count: count
+// View cart with cache support and database fallback
+router.get('/cart', auth, isUser, async (req, res) => {
+    try {
+        console.log('🛒 GET /cart - Session ID:', req.sessionID);
+        console.log('🛒 GET /cart - Session exists:', !!req.session);
+        console.log('🛒 GET /cart - User in session:', req.session?.user?.name || 'No user');
+        console.log('🛒 GET /cart - Raw cart data:', req.session.cart);
+        
+        let cart = req.session.cart || [];
+        
+        // If session cart is empty, try database fallback
+        if (cart.length === 0) {
+            console.log('⚠️ Session cart empty, checking database');
+            const dbCartResult = await pool.query(`
+                SELECT c.quantity, p.id, p.name, p.price, p.image_url, p.description 
+                FROM cart c 
+                JOIN products p ON c.product_id = p.id 
+                WHERE c.user_id = $1
+            `, [req.user.id]);
+            
+            cart = dbCartResult.rows.map(row => ({
+                id: row.id,
+                name: row.name,
+                price: row.price,
+                quantity: row.quantity,
+                image_url: row.image_url,
+                description: row.description
+            }));
+            
+            // Restore to session if we found items in database
+            if (cart.length > 0) {
+                req.session.cart = cart;
+                console.log('🔄 Restored', cart.length, 'items from database to session');
             }
-        });
+        }
+        
+        console.log('🛒 GET /cart - Processed cart:', cart);
+        console.log('🛒 GET /cart - Cart items count:', cart.length);
+    
+        const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+        
+        console.log('🛒 GET /cart - Total calculated:', total);
+        console.log('🛒 GET /cart - Count calculated:', count);
+        
+        // API response for cache integration
+        if (req.headers.accept?.includes('application/json') || req.query.format === 'json') {
+            return res.json({
+                success: true,
+                cart: {
+                    items: cart,
+                    total: total,
+                    count: count
+                }
+            });
+        }
+        
+        const viewData = {
+            cart,
+            total,
+            count,
+            user: req.user
+        };
+        
+        console.log('🛒 GET /cart - Rendering with data:', viewData);
+        res.render('user/cart', viewData);
+    } catch (err) {
+        console.error('❌ Cart view error:', err);
+        res.render('error', { message: 'Error loading cart: ' + err.message });
     }
-    
-    const viewData = {
-        cart,
-        total,
-        count,
-        user: req.user
-    };
-    
-    console.log('🛒 GET /cart - Rendering with data:', viewData);
-    res.render('user/cart', viewData);
 });
 
 // Update cart
-router.post('/update-cart', auth, isUser, (req, res) => {
-    const { productId, quantity } = req.body;
-    const cart = req.session.cart || [];
-    
-    const cartItem = cart.find(item => item.id === parseInt(productId));
-    if (cartItem) {
-        if (parseInt(quantity) === 0) {
-            req.session.cart = cart.filter(item => item.id !== parseInt(productId));
-        } else {
-            cartItem.quantity = parseInt(quantity);
+router.post('/update-cart', auth, isUser, async (req, res) => {
+    try {
+        const { productId, quantity } = req.body;
+        const cart = req.session.cart || [];
+        
+        const cartItem = cart.find(item => item.id === parseInt(productId));
+        if (cartItem) {
+            if (parseInt(quantity) === 0) {
+                req.session.cart = cart.filter(item => item.id !== parseInt(productId));
+                // Remove from database too
+                await pool.query('DELETE FROM cart WHERE user_id = $1 AND product_id = $2', 
+                    [req.user.id, parseInt(productId)]);
+            } else {
+                cartItem.quantity = parseInt(quantity);
+                // Update in database too
+                await pool.query(`
+                    INSERT INTO cart (user_id, product_id, quantity) 
+                    VALUES ($1, $2, $3)
+                    ON CONFLICT (user_id, product_id) 
+                    DO UPDATE SET quantity = $3
+                `, [req.user.id, parseInt(productId), parseInt(quantity)]);
+            }
         }
+        
+        res.redirect('/user/cart');
+    } catch (err) {
+        console.error('❌ Cart update error:', err);
+        res.redirect('/user/cart');
     }
-    
-    res.redirect('/user/cart');
 });
 
 // Checkout
@@ -179,9 +240,33 @@ router.post('/checkout', auth, isUser, async (req, res) => {
         
         await client.query('BEGIN');
         
-        const cart = req.session.cart || [];
+        // Try to get cart from session first, then fallback to database
+        let cart = req.session.cart || [];
+        
+        // If session cart is empty, try to get from database as fallback
         if (cart.length === 0) {
-            console.log('❌ Cart is empty');
+            console.log('⚠️ Session cart empty, checking database cart');
+            const dbCartResult = await client.query(`
+                SELECT c.quantity, p.id, p.name, p.price, p.image_url, p.description 
+                FROM cart c 
+                JOIN products p ON c.product_id = p.id 
+                WHERE c.user_id = $1
+            `, [req.user.id]);
+            
+            cart = dbCartResult.rows.map(row => ({
+                id: row.id,
+                name: row.name,
+                price: row.price,
+                quantity: row.quantity,
+                image_url: row.image_url,
+                description: row.description
+            }));
+            
+            console.log('🛒 Retrieved cart from database:', cart.length, 'items');
+        }
+        
+        if (cart.length === 0) {
+            console.log('❌ Cart is empty in both session and database');
             throw new Error('Cart is empty');
         }
 
@@ -206,15 +291,20 @@ router.post('/checkout', auth, isUser, async (req, res) => {
             console.log('➕ Added item to order:', item.name);
         }
         
+        // Clear both session and database cart
+        await client.query('DELETE FROM cart WHERE user_id = $1', [req.user.id]);
+        console.log('🗑️ Database cart cleared');
+        
         await client.query('COMMIT');
         console.log('✅ Database transaction committed');
         
-        // Clear cart and save session
+        // Clear session cart and save
         req.session.cart = [];
         req.session.save((err) => {
             if (err) {
                 console.error('❌ Session save error after checkout:', err);
-                return res.render('error', { message: 'Order placed but cart clear failed. Please refresh your cart.' });
+                // Still redirect even if session save fails since DB is cleared
+                return res.redirect('/user/orders');
             }
             
             console.log('💾 Session saved after cart clear');
