@@ -174,14 +174,19 @@ router.post('/update-cart', auth, isUser, (req, res) => {
 router.post('/checkout', auth, isUser, async (req, res) => {
     const client = await pool.connect();
     try {
+        console.log('🛒 Checkout started for user:', req.user.id);
+        console.log('🛒 Session cart:', req.session.cart);
+        
         await client.query('BEGIN');
         
         const cart = req.session.cart || [];
         if (cart.length === 0) {
+            console.log('❌ Cart is empty');
             throw new Error('Cart is empty');
         }
 
         const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        console.log('💰 Order total calculated:', total);
         
         // Create order
         const orderResult = await client.query(
@@ -190,6 +195,7 @@ router.post('/checkout', auth, isUser, async (req, res) => {
         );
         
         const orderId = orderResult.rows[0].id;
+        console.log('📋 Order created with ID:', orderId);
         
         // Create order items
         for (const item of cart) {
@@ -197,17 +203,29 @@ router.post('/checkout', auth, isUser, async (req, res) => {
                 'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES ($1, $2, $3, $4)',
                 [orderId, item.id, item.quantity, item.price]
             );
+            console.log('➕ Added item to order:', item.name);
         }
         
         await client.query('COMMIT');
+        console.log('✅ Database transaction committed');
         
-        // Clear cart
+        // Clear cart and save session
         req.session.cart = [];
+        req.session.save((err) => {
+            if (err) {
+                console.error('❌ Session save error after checkout:', err);
+                return res.render('error', { message: 'Order placed but cart clear failed. Please refresh your cart.' });
+            }
+            
+            console.log('💾 Session saved after cart clear');
+            console.log('🔄 Redirecting to orders page');
+            res.redirect('/user/orders');
+        });
         
-        res.redirect('/user/orders');
     } catch (err) {
+        console.error('❌ Checkout error:', err);
         await client.query('ROLLBACK');
-        res.render('error', { message: 'Error processing order' });
+        res.render('error', { message: 'Error processing order: ' + err.message });
     } finally {
         client.release();
     }
@@ -216,25 +234,49 @@ router.post('/checkout', auth, isUser, async (req, res) => {
 // View orders
 router.get('/orders', auth, isUser, async (req, res) => {
     try {
+        console.log('📋 Fetching orders for user:', req.user.id);
+        
         const result = await pool.query(`
             SELECT o.id, o.total_amount, o.status, o.created_at,
-                   json_agg(json_build_object(
-                       'name', p.name,
-                       'quantity', oi.quantity,
-                       'price', oi.price
-                   )) as items
+                   COALESCE(
+                       json_agg(
+                           json_build_object(
+                               'name', p.name,
+                               'quantity', oi.quantity,
+                               'price', oi.price,
+                               'id', p.id,
+                               'image_url', p.image_url,
+                               'description', p.description
+                           )
+                       ) FILTER (WHERE oi.id IS NOT NULL),
+                       '[]'::json
+                   ) as items
             FROM orders o
-            JOIN order_items oi ON o.id = oi.order_id
-            JOIN products p ON oi.product_id = p.id
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            LEFT JOIN products p ON oi.product_id = p.id
             WHERE o.user_id = $1
-            GROUP BY o.id
+            GROUP BY o.id, o.total_amount, o.status, o.created_at
             ORDER BY o.created_at DESC
         `, [req.user.id]);
         
+        console.log('📋 Found orders:', result.rows.length);
         res.render('user/orders', { orders: result.rows });
     } catch (err) {
-        res.render('error', { message: 'Error fetching orders' });
+        console.error('❌ Error fetching orders:', err);
+        res.render('error', { message: 'Error fetching orders: ' + err.message });
     }
+});
+
+// Debug route for troubleshooting (remove in production)
+router.get('/debug-session', auth, isUser, (req, res) => {
+    res.json({
+        sessionId: req.sessionID,
+        userId: req.user?.id,
+        userRole: req.user?.role,
+        cartItems: req.session.cart?.length || 0,
+        hasToken: !!req.session.token,
+        timestamp: new Date().toISOString()
+    });
 });
 
 module.exports = router;
