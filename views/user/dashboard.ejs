@@ -390,8 +390,8 @@
             buttonEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
             buttonEl.disabled = true;
             
-            // Simulate API call
-            fetch('/user/add-to-cart', {
+            // Add to cart with JSON response
+            fetch('/user/add-to-cart?format=json', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -400,8 +400,39 @@
             })
             .then(response => {
                 if (response.ok) {
+                    // Check if response is JSON (for API responses) or redirect (for regular form submission)
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        return response.json().then(data => {
+                            if (data.success) {
+                                // Update cart count from server response
+                                const cartCount = data.cart.count || 0;
+                                
+                                // Use global cart counter if available
+                                if (window.cartCounter) {
+                                    window.cartCounter.updateCartElements(cartCount);
+                                } else {
+                                    // Fallback to manual update
+                                    document.getElementById('cartCount').textContent = cartCount;
+                                    const cartBadges = document.querySelectorAll('.cart-badge, .cart-count');
+                                    cartBadges.forEach(badge => {
+                                        badge.textContent = cartCount;
+                                        badge.style.display = cartCount > 0 ? 'inline' : 'none';
+                                    });
+                                }
+                                
+                                // Trigger cart update event
+                                window.dispatchEvent(new CustomEvent('cartUpdated', { 
+                                    detail: { count: cartCount } 
+                                }));
+                            }
+                        });
+                    } else {
+                        // Regular redirect response, update cart count separately
+                        updateCartCount();
+                    }
+                    
                     showToast('Product added to cart!', 'success');
-                    updateCartCount();
                     
                     // Success animation
                     buttonEl.innerHTML = '<i class="fas fa-check"></i> Added!';
@@ -529,9 +560,31 @@
         }
 
         function updateCartCount() {
-            // This would typically fetch from server
-            // For now, just show a placeholder
-            document.getElementById('cartCount').textContent = '0';
+            // Use the global cart counter if available, otherwise fallback to local implementation
+            if (window.cartCounter) {
+                window.cartCounter.refresh();
+            } else {
+                // Fallback implementation
+                fetch('/user/cart?format=json')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const cartCount = data.cart.count || 0;
+                            document.getElementById('cartCount').textContent = cartCount;
+                            
+                            // Also update any cart badge elements
+                            const cartBadges = document.querySelectorAll('.cart-badge, .cart-count');
+                            cartBadges.forEach(badge => {
+                                badge.textContent = cartCount;
+                                badge.style.display = cartCount > 0 ? 'inline' : 'none';
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Failed to update cart count:', error);
+                        document.getElementById('cartCount').textContent = '0';
+                    });
+            }
         }
 
         function updateStats() {
@@ -600,5 +653,6 @@
             };
         }
     </script>
+    <script src="/js/cart-counter.js"></script>
 </body>
 </html>
