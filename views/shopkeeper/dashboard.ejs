@@ -73,10 +73,13 @@
                         <i class="fas fa-dollar-sign"></i>
                     </div>
                     <div class="stat-content">
-                        <h3 id="totalRevenue">₹0</h3>
+                        <h3 id="totalRevenue">₹<%= stats ? stats.totalRevenue.toLocaleString() : '0' %></h3>
                         <p>Total Revenue</p>
                         <span class="stat-change positive">
-                            <i class="fas fa-arrow-up"></i> +12.5%
+                            <i class="fas fa-arrow-up"></i> 
+                            <% if (stats && stats.revenueThisMonth > 0) { %>
+                                +<%= ((stats.revenueThisMonth / stats.totalRevenue) * 100).toFixed(1) %>%
+                            <% } else { %>0%<% } %>
                         </span>
                     </div>
                 </div>
@@ -86,10 +89,10 @@
                         <i class="fas fa-box"></i>
                     </div>
                     <div class="stat-content">
-                        <h3 id="totalProducts"><%= products.length %></h3>
+                        <h3 id="totalProducts"><%= stats ? stats.totalProducts : products.length %></h3>
                         <p>Total Products</p>
                         <span class="stat-change neutral">
-                            <i class="fas fa-minus"></i> 0%
+                            <i class="fas fa-box"></i> System-wide
                         </span>
                     </div>
                 </div>
@@ -99,10 +102,11 @@
                         <i class="fas fa-shopping-cart"></i>
                     </div>
                     <div class="stat-content">
-                        <h3 id="totalOrders">0</h3>
+                        <h3 id="totalOrders"><%= stats ? stats.totalOrders : '0' %></h3>
                         <p>Total Orders</p>
                         <span class="stat-change positive">
-                            <i class="fas fa-arrow-up"></i> +8.3%
+                            <i class="fas fa-arrow-up"></i> 
+                            <%= stats ? stats.ordersThisMonth : '0' %> this month
                         </span>
                     </div>
                 </div>
@@ -112,11 +116,68 @@
                         <i class="fas fa-users"></i>
                     </div>
                     <div class="stat-content">
-                        <h3 id="totalCustomers">0</h3>
-                        <p>Customers</p>
+                        <h3 id="totalCustomers"><%= stats ? stats.totalUsers : '0' %></h3>
+                        <p>Total Users</p>
                         <span class="stat-change positive">
-                            <i class="fas fa-arrow-up"></i> +15.2%
+                            <i class="fas fa-arrow-up"></i> 
+                            <%= stats ? stats.newUsersThisMonth : '0' %> new
                         </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Status Stats -->
+            <div class="order-status-stats">
+                <h3><i class="fas fa-chart-bar"></i> Order Status Overview</h3>
+                <div class="status-cards">
+                    <div class="status-card pending">
+                        <div class="status-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="status-content">
+                            <h4 id="pendingOrders">0</h4>
+                            <p>Pending</p>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card processing">
+                        <div class="status-icon">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <div class="status-content">
+                            <h4 id="processingOrders">0</h4>
+                            <p>Processing</p>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card shipped">
+                        <div class="status-icon">
+                            <i class="fas fa-truck"></i>
+                        </div>
+                        <div class="status-content">
+                            <h4 id="shippedOrders">0</h4>
+                            <p>Shipped</p>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card delivered">
+                        <div class="status-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="status-content">
+                            <h4 id="deliveredOrders">0</h4>
+                            <p>Delivered</p>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card cancelled">
+                        <div class="status-icon">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div class="status-content">
+                            <h4 id="cancelledOrders">0</h4>
+                            <p>Cancelled</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -198,10 +259,12 @@
                                     <span class="status-badge active">Active</span>
                                 </td>
                                 <td class="stock-cell">
-                                    <span class="stock-count">15</span>
+                                    <span class="stock-count <%= product.stock_quantity === 0 ? 'out-of-stock' : product.stock_quantity < 10 ? 'low-stock' : '' %>">
+                                        <%= product.stock_quantity || 0 %>
+                                    </span>
                                 </td>
                                 <td class="sales-cell">
-                                    <span class="sales-count">0</span>
+                                    <span class="sales-count"><%= product.total_sold || 0 %></span>
                                 </td>
                                 <td class="actions-cell">
                                     <div class="action-buttons">
@@ -241,7 +304,236 @@
                 <button class="btn danger" onclick="bulkDelete()">Delete</button>
             </div>
         </div>
+        
+        <!-- Admin Management Tabs -->
+        <div class="admin-tabs">
+            <div class="tab-navigation">
+                <button class="tab-btn active" onclick="switchTab('products')">
+                    <i class="fas fa-boxes"></i> Products
+                </button>
+                <button class="tab-btn" onclick="switchTab('users')">
+                    <i class="fas fa-users"></i> Users
+                </button>
+                <button class="tab-btn" onclick="switchTab('orders')">
+                    <i class="fas fa-shopping-cart"></i> Orders
+                </button>
+                <button class="tab-btn" onclick="switchTab('reviews')">
+                    <i class="fas fa-star"></i> Reviews
+                </button>
+                <button class="tab-btn" onclick="switchTab('reports')">
+                    <i class="fas fa-chart-bar"></i> Reports
+                </button>
+            </div>
+            
+            <!-- Users Management Tab -->
+            <div id="usersTab" class="tab-content" style="display: none;">
+                <div class="section-header">
+                    <h2><i class="fas fa-users"></i> User Management</h2>
+                    <div class="header-actions">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="userSearch" placeholder="Search users...">
+                        </div>
+                        <select id="userFilter" class="filter-select">
+                            <option value="all">All Users</option>
+                            <option value="active">Active</option>
+                            <option value="banned">Banned</option>
+                        </select>
+                        <button class="btn secondary" onclick="exportUsers()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="management-content">
+                    <div class="data-table-container">
+                        <table class="data-table" id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Orders</th>
+                                    <th>Total Spent</th>
+                                    <th>Joined</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                <tr><td colspan="7" class="loading-cell">Loading users...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination" id="usersPagination"></div>
+                </div>
+            </div>
+            
+            <!-- Orders Management Tab -->
+            <div id="ordersTab" class="tab-content" style="display: none;">
+                <div class="section-header">
+                    <h2><i class="fas fa-shopping-cart"></i> Order Management</h2>
+                    <div class="header-actions">
+                        <select id="orderStatusFilter" class="filter-select">
+                            <option value="all">All Orders</option>
+                            <option value="pending">Pending</option>
+                            <option value="processing">Processing</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                        <button class="btn secondary" onclick="exportOrders()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="management-content">
+                    <div class="data-table-container">
+                        <table class="data-table" id="ordersTable">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Customer</th>
+                                    <th>Amount</th>
+                                    <th>Items</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTableBody">
+                                <tr><td colspan="7" class="loading-cell">Loading orders...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination" id="ordersPagination"></div>
+                </div>
+            </div>
+            
+            <!-- Reviews Management Tab -->
+            <div id="reviewsTab" class="tab-content" style="display: none;">
+                <div class="section-header">
+                    <h2><i class="fas fa-star"></i> Review Management</h2>
+                    <div class="header-actions">
+                        <select id="reviewRatingFilter" class="filter-select">
+                            <option value="all">All Ratings</option>
+                            <option value="5">5 Stars</option>
+                            <option value="4">4 Stars</option>
+                            <option value="3">3 Stars</option>
+                            <option value="2">2 Stars</option>
+                            <option value="1">1 Star</option>
+                        </select>
+                        <button class="btn secondary" onclick="exportReviews()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="management-content">
+                    <div class="data-table-container">
+                        <table class="data-table" id="reviewsTable">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>User</th>
+                                    <th>Rating</th>
+                                    <th>Comment</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reviewsTableBody">
+                                <tr><td colspan="6" class="loading-cell">Loading reviews...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination" id="reviewsPagination"></div>
+                </div>
+            </div>
+            
+            <!-- Reports Tab -->
+            <div id="reportsTab" class="tab-content" style="display: none;">
+                <div class="section-header">
+                    <h2><i class="fas fa-chart-bar"></i> Reports & Analytics</h2>
+                    <div class="header-actions">
+                        <select id="reportPeriod" class="filter-select">
+                            <option value="week">Last 7 Days</option>
+                            <option value="month" selected>Last 30 Days</option>
+                            <option value="year">Last Year</option>
+                        </select>
+                        <button class="btn secondary" onclick="refreshReports()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="reports-content">
+                    <div class="report-cards">
+                        <div class="report-card">
+                            <h3><i class="fas fa-chart-line"></i> Sales Report</h3>
+                            <canvas id="salesReportChart"></canvas>
+                        </div>
+                        <div class="report-card">
+                            <h3><i class="fas fa-trophy"></i> Top Products</h3>
+                            <div id="topProductsList" class="top-products-list">
+                                <div class="loading">Loading top products...</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="report-cards">
+                        <div class="report-card">
+                            <h3><i class="fas fa-users"></i> User Analytics</h3>
+                            <canvas id="userGrowthChart"></canvas>
+                        </div>
+                        <div class="report-card">
+                            <h3><i class="fas fa-star"></i> Review Analytics</h3>
+                            <div id="reviewAnalytics" class="analytics-summary">
+                                <div class="loading">Loading review analytics...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
+
+    <!-- Admin Action Modals -->
+    <!-- User Details Modal -->
+    <div id="userModal" class="modal">
+        <div class="modal-content large">
+            <button class="modal-close" onclick="closeUserModal()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div id="userModalContent">
+                <!-- Dynamic user content -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Order Details Modal -->
+    <div id="orderModal" class="modal">
+        <div class="modal-content large">
+            <button class="modal-close" onclick="closeOrderModal()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div id="orderModalContent">
+                <!-- Dynamic order content -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Status Update Modal -->
+    <div id="statusModal" class="modal">
+        <div class="modal-content small">
+            <button class="modal-close" onclick="closeStatusModal()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div id="statusModalContent">
+                <!-- Dynamic status update content -->
+            </div>
+        </div>
+    </div>
 
     <!-- Product View Modal -->
     <div id="productModal" class="modal">
@@ -301,7 +593,7 @@
         // Global variables
         let allProducts = [];
         let selectedProducts = [];
-        let salesChart, categoryChart;
+        let salesChart, categoryChart, userGrowthChart;
 
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
@@ -388,6 +680,15 @@
                 const formattedRevenue = Number(data.totalRevenue).toLocaleString('en-IN', { maximumFractionDigits: 2 });
                 document.getElementById('totalRevenue').textContent = `₹${formattedRevenue}`;
 
+                // Update order status counts
+                if (data.orderStatus) {
+                    document.getElementById('pendingOrders').textContent = data.orderStatus.pending || 0;
+                    document.getElementById('processingOrders').textContent = data.orderStatus.processing || 0;
+                    document.getElementById('shippedOrders').textContent = data.orderStatus.shipped || 0;
+                    document.getElementById('deliveredOrders').textContent = data.orderStatus.delivered || 0;
+                    document.getElementById('cancelledOrders').textContent = data.orderStatus.cancelled || 0;
+                }
+
             } catch (err) {
                 console.error('Error fetching dashboard metrics:', err);
             }
@@ -399,6 +700,11 @@
             
             // Filter functionality
             document.getElementById('productFilter').addEventListener('change', filterProducts);
+            
+            // Order status filter
+            document.getElementById('orderStatusFilter').addEventListener('change', () => {
+                loadOrders(1); // Reset to page 1 when filter changes
+            });
             
             // Checkbox functionality
             document.getElementById('selectAll').addEventListener('change', toggleSelectAll);
@@ -424,16 +730,87 @@
             });
         }
 
-        function initializeCharts() {
-            // Sales trend chart
+        async function initializeCharts() {
+            try {
+                // Fetch real chart data from the backend
+                const [salesData, categoryData] = await Promise.all([
+                    fetch('/shopkeeper/api/sales-chart-data').then(res => res.json()),
+                    fetch('/shopkeeper/api/category-chart-data').then(res => res.json())
+                ]);
+
+                // Sales trend chart with real data
+                const salesCtx = document.getElementById('salesChart').getContext('2d');
+                salesChart = new Chart(salesCtx, {
+                    type: 'line',
+                    data: {
+                        labels: salesData.labels || ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                        datasets: [{
+                            label: 'Sales (₹)',
+                            data: salesData.data || [0, 0, 0, 0, 0, 0],
+                            borderColor: '#4a90e2',
+                            backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+                
+                // Category chart with real data
+                const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+                categoryChart = new Chart(categoryCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: categoryData.labels || ['No Data'],
+                        datasets: [{
+                            data: categoryData.data || [1],
+                            backgroundColor: categoryData.backgroundColor || ['#cccccc']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+
+                // Update statistics with real data
+                await updateDashboardStats();
+
+            } catch (error) {
+                console.error('Error loading charts:', error);
+                // Fallback to basic charts if API fails
+                initializeFallbackCharts();
+            }
+        }
+
+        function initializeFallbackCharts() {
+            // Fallback charts with minimal data
             const salesCtx = document.getElementById('salesChart').getContext('2d');
             salesChart = new Chart(salesCtx, {
                 type: 'line',
                 data: {
-                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    labels: ['No Data'],
                     datasets: [{
                         label: 'Sales (₹)',
-                        data: [1200, 1900, 3000, 2500, 2200, 3000],
+                        data: [0],
                         borderColor: '#4a90e2',
                         backgroundColor: 'rgba(74, 144, 226, 0.1)',
                         tension: 0.4,
@@ -456,20 +833,14 @@
                 }
             });
             
-            // Category chart
             const categoryCtx = document.getElementById('categoryChart').getContext('2d');
             categoryChart = new Chart(categoryCtx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Electronics', 'Clothing', 'Food', 'Others'],
+                    labels: ['No Data'],
                     datasets: [{
-                        data: [35, 25, 20, 20],
-                        backgroundColor: [
-                            '#4a90e2',
-                            '#5c6ac4',
-                            '#00c853',
-                            '#ff6b35'
-                        ]
+                        data: [1],
+                        backgroundColor: ['#cccccc']
                     }]
                 },
                 options: {
@@ -482,6 +853,32 @@
                     }
                 }
             });
+        }
+
+        async function updateDashboardStats() {
+            try {
+                const statsResponse = await fetch('/shopkeeper/api/dashboard-stats');
+                const stats = await statsResponse.json();
+                
+                // Update the stat cards with real data
+                if (stats.success) {
+                    const data = stats.data;
+                    
+                    // Update revenue
+                    document.getElementById('totalRevenue').textContent = `₹${data.totalRevenue.toLocaleString()}`;
+                    
+                    // Update products count
+                    document.getElementById('totalProducts').textContent = data.totalProducts;
+                    
+                    // Update orders count
+                    document.getElementById('totalOrders').textContent = data.totalOrders;
+                    
+                    // Update customers count
+                    document.getElementById('totalCustomers').textContent = data.totalUsers;
+                }
+            } catch (error) {
+                console.error('Error updating dashboard stats:', error);
+            }
         }
 
         function filterProducts() {
@@ -718,16 +1115,815 @@
             updateSelectedProducts();
         }
 
+        // === ADMIN TAB MANAGEMENT ===
+        let currentTab = 'products';
+        let currentUsersPage = 1;
+        let currentOrdersPage = 1;
+        let currentReviewsPage = 1;
+        
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            const selectedTab = document.getElementById(tabName + 'Tab');
+            if (selectedTab) {
+                selectedTab.style.display = 'block';
+            } else {
+                // Show products management for default case
+                document.querySelector('.products-management').style.display = 'block';
+            }
+            
+            // Add active class to the correct button
+            const tabButton = document.querySelector(`[onclick*="switchTab('${tabName}')"]`);
+            if (tabButton) {
+                tabButton.classList.add('active');
+            }
+            
+            currentTab = tabName;
+            
+            // Load data for the tab
+            loadTabData(tabName);
+        }
+        
+        function loadTabData(tabName) {
+            switch(tabName) {
+                case 'users':
+                    loadUsers();
+                    break;
+                case 'orders':
+                    loadOrders();
+                    break;
+                case 'reviews':
+                    loadReviews();
+                    break;
+                case 'reports':
+                    loadReports();
+                    break;
+                default:
+                    // Products are already loaded
+                    break;
+            }
+        }
+        
+        // === USER MANAGEMENT ===
+        async function loadUsers(page = 1) {
+            try {
+                const search = document.getElementById('userSearch')?.value || '';
+                const status = document.getElementById('userFilter')?.value || 'all';
+                
+                const response = await fetch(`/shopkeeper/admin/users?page=${page}&search=${search}&status=${status}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayUsers(data.users);
+                    updateUsersPagination(data.pagination);
+                } else {
+                    showToast('Failed to load users', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showToast('Error loading users', 'error');
+            }
+        }
+        
+        function displayUsers(users) {
+            const tbody = document.getElementById('usersTableBody');
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="no-data">No users found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = users.map(user => `
+                <tr>
+                    <td>
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="user-details">
+                                <span class="user-name">${user.name}</span>
+                                <span class="user-id">ID: ${user.id}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${user.email}</td>
+                    <td>${user.order_count || 0}</td>
+                    <td>₹${parseFloat(user.total_spent || 0).toLocaleString()}</td>
+                    <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                    <td>
+                        <span class="status-badge ${user.is_banned ? 'banned' : 'active'}">
+                            ${user.is_banned ? 'Banned' : 'Active'}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="action-btn view" onclick="viewUserDetails(${user.id})" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="action-btn ${user.is_banned ? 'unban' : 'ban'}" 
+                                    onclick="${user.is_banned ? 'unbanUser' : 'banUser'}(${user.id})" 
+                                    title="${user.is_banned ? 'Unban' : 'Ban'} User">
+                                <i class="fas fa-${user.is_banned ? 'check' : 'ban'}"></i>
+                            </button>
+                            <button class="action-btn delete" onclick="deleteUser(${user.id})" title="Delete User">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        async function viewUserDetails(userId) {
+            try {
+                const response = await fetch(`/shopkeeper/admin/users/${userId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const user = data.user;
+                    const orders = data.recentOrders;
+                    
+                    document.getElementById('userModalContent').innerHTML = `
+                        <div class="user-details-modal">
+                            <h2><i class="fas fa-user"></i> ${user.name}</h2>
+                            <div class="user-info-grid">
+                                <div class="info-item">
+                                    <label>Email:</label>
+                                    <span>${user.email}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Member Since:</label>
+                                    <span>${new Date(user.created_at).toLocaleDateString()}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Total Orders:</label>
+                                    <span>${user.order_count}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Total Spent:</label>
+                                    <span>₹${parseFloat(user.total_spent).toLocaleString()}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Reviews Written:</label>
+                                    <span>${user.review_count}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Status:</label>
+                                    <span class="status-badge ${user.is_banned ? 'banned' : 'active'}">
+                                        ${user.is_banned ? 'Banned' : 'Active'}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            ${user.is_banned ? `
+                                <div class="ban-info">
+                                    <h3>Ban Details</h3>
+                                    <p><strong>Banned On:</strong> ${new Date(user.banned_at).toLocaleString()}</p>
+                                    <p><strong>Reason:</strong> ${user.ban_reason || 'No reason provided'}</p>
+                                </div>
+                            ` : ''}
+                            
+                            <div class="recent-orders">
+                                <h3>Recent Orders</h3>
+                                ${orders.length > 0 ? `
+                                    <div class="orders-list">
+                                        ${orders.map(order => `
+                                            <div class="order-item">
+                                                <span>Order #${order.id}</span>
+                                                <span>₹${order.total_amount}</span>
+                                                <span class="status-badge status-${order.status}">${order.status}</span>
+                                                <span>${new Date(order.created_at).toLocaleDateString()}</span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : '<p>No orders found</p>'}
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('userModal').style.display = 'flex';
+                } else {
+                    showToast('Failed to load user details', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading user details:', error);
+                showToast('Error loading user details', 'error');
+            }
+        }
+        
+        async function banUser(userId) {
+            const reason = prompt('Please provide a reason for banning this user:');
+            if (reason !== null) {
+                try {
+                    const response = await fetch(`/shopkeeper/admin/users/${userId}/ban`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ban: true, reason: reason })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        showToast('User banned successfully', 'success');
+                        loadUsers(currentUsersPage);
+                    } else {
+                        showToast(data.error || 'Failed to ban user', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error banning user:', error);
+                    showToast('Error banning user', 'error');
+                }
+            }
+        }
+        
+        async function unbanUser(userId) {
+            if (confirm('Are you sure you want to unban this user?')) {
+                try {
+                    const response = await fetch(`/shopkeeper/admin/users/${userId}/ban`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ban: false })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        showToast('User unbanned successfully', 'success');
+                        loadUsers(currentUsersPage);
+                    } else {
+                        showToast(data.error || 'Failed to unban user', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error unbanning user:', error);
+                    showToast('Error unbanning user', 'error');
+                }
+            }
+        }
+        
+        async function deleteUser(userId) {
+            if (confirm('Are you sure you want to permanently delete this user? This action cannot be undone.')) {
+                try {
+                    const response = await fetch(`/shopkeeper/admin/users/${userId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        showToast('User deleted successfully', 'success');
+                        loadUsers(currentUsersPage);
+                    } else {
+                        showToast(data.error || 'Failed to delete user', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting user:', error);
+                    showToast('Error deleting user', 'error');
+                }
+            }
+        }
+        
+        // === ORDER MANAGEMENT ===
+        async function loadOrders(page = 1) {
+            try {
+                const status = document.getElementById('orderStatusFilter')?.value || 'all';
+                
+                const response = await fetch(`/shopkeeper/admin/orders?page=${page}&status=${status}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayOrders(data.orders);
+                    updateOrdersPagination(data.pagination);
+                } else {
+                    showToast('Failed to load orders', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                showToast('Error loading orders', 'error');
+            }
+        }
+        
+        function displayOrders(orders) {
+            const tbody = document.getElementById('ordersTableBody');
+            if (orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="no-data">No orders found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = orders.map(order => `
+                <tr>
+                    <td>#${order.id}</td>
+                    <td>
+                        <div class="customer-info">
+                            <span class="customer-name">${order.user_name}</span>
+                            <span class="customer-email">${order.user_email}</span>
+                        </div>
+                    </td>
+                    <td>₹${parseFloat(order.total_amount).toLocaleString()}</td>
+                    <td>${order.item_count} items</td>
+                    <td>
+                        <span class="status-badge status-${order.status}">
+                            ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                        </span>
+                    </td>
+                    <td>${new Date(order.created_at).toLocaleDateString()}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="action-btn view" onclick="viewOrderDetails(${order.id})" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="action-btn edit" onclick="updateOrderStatus(${order.id})" title="Update Status">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        async function viewOrderDetails(orderId) {
+            try {
+                const response = await fetch(`/shopkeeper/admin/orders/${orderId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const order = data.order;
+                    
+                    document.getElementById('orderModalContent').innerHTML = `
+                        <div class="order-details-modal">
+                            <h2><i class="fas fa-shopping-cart"></i> Order #${order.id}</h2>
+                            <div class="order-info-grid">
+                                <div class="info-item">
+                                    <label>Customer:</label>
+                                    <span>${order.user_name}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Email:</label>
+                                    <span>${order.user_email}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Status:</label>
+                                    <span class="status-badge status-${order.status}">${order.status}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Order Date:</label>
+                                    <span>${new Date(order.created_at).toLocaleString()}</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Total Amount:</label>
+                                    <span>₹${parseFloat(order.total_amount).toLocaleString()}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="order-items">
+                                <h3>Order Items</h3>
+                                <div class="items-list">
+                                    ${order.items.map(item => `
+                                        <div class="item-row">
+                                            <div class="item-image">
+                                                ${item.image_url ? `<img src="${item.image_url}" alt="${item.name}">` : '<i class="fas fa-image"></i>'}
+                                            </div>
+                                            <div class="item-details">
+                                                <span class="item-name">${item.name}</span>
+                                                <span class="item-quantity">Qty: ${item.quantity}</span>
+                                                <span class="item-price">₹${item.price} each</span>
+                                            </div>
+                                            <div class="item-total">
+                                                ₹${(item.price * item.quantity).toLocaleString()}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            
+                            <div class="order-actions">
+                                <button class="btn primary" onclick="updateOrderStatus(${order.id})">
+                                    <i class="fas fa-edit"></i> Update Status
+                                </button>
+                                <button class="btn secondary" onclick="closeOrderModal()">
+                                    <i class="fas fa-times"></i> Close
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('orderModal').style.display = 'flex';
+                } else {
+                    showToast('Failed to load order details', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading order details:', error);
+                showToast('Error loading order details', 'error');
+            }
+        }
+        
+        function updateOrderStatus(orderId) {
+            document.getElementById('statusModalContent').innerHTML = `
+                <div class="status-update-modal">
+                    <h3><i class="fas fa-edit"></i> Update Order Status</h3>
+                    <form onsubmit="submitStatusUpdate(event, ${orderId})">
+                        <div class="form-group">
+                            <label>New Status:</label>
+                            <select id="newStatus" required>
+                                <option value="pending">Pending</option>
+                                <option value="processing">Processing</option>
+                                <option value="shipped">Shipped</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Location (optional):</label>
+                            <input type="text" id="statusLocation" placeholder="e.g., Processing Center">
+                        </div>
+                        <div class="form-group">
+                            <label>Description (optional):</label>
+                            <textarea id="statusDescription" placeholder="Additional details..."></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn secondary" onclick="closeStatusModal()">Cancel</button>
+                            <button type="submit" class="btn primary">Update Status</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            
+            document.getElementById('statusModal').style.display = 'flex';
+        }
+        
+        async function submitStatusUpdate(event, orderId) {
+            event.preventDefault();
+            
+            try {
+                const status = document.getElementById('newStatus').value;
+                const location = document.getElementById('statusLocation').value;
+                const description = document.getElementById('statusDescription').value;
+                
+                const response = await fetch(`/shopkeeper/admin/orders/${orderId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status, location, description })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showToast('Order status updated successfully', 'success');
+                    closeStatusModal();
+                    loadOrders(currentOrdersPage);
+                } else {
+                    showToast(data.error || 'Failed to update order status', 'error');
+                }
+            } catch (error) {
+                console.error('Error updating order status:', error);
+                showToast('Error updating order status', 'error');
+            }
+        }
+        
+        // === REVIEWS MANAGEMENT ===
+        async function loadReviews(page = 1) {
+            try {
+                const response = await fetch(`/shopkeeper/admin/reviews?page=${page}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayReviews(data.reviews);
+                    updateReviewsPagination(data.pagination);
+                } else {
+                    showToast('Failed to load reviews', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading reviews:', error);
+                showToast('Error loading reviews', 'error');
+            }
+        }
+        
+        function displayReviews(reviews) {
+            const tbody = document.getElementById('reviewsTableBody');
+            if (reviews.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="no-data">No reviews found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = reviews.map(review => `
+                <tr>
+                    <td>
+                        <div class="product-info">
+                            <span class="product-name">${review.product_name}</span>
+                            <span class="product-id">ID: ${review.product_id}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="user-info">
+                            <span class="user-name">${review.user_name}</span>
+                            <span class="user-email">${review.user_email}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="rating-display">
+                            ${'★'.repeat(review.rating)}${'☆'.repeat(5-review.rating)}
+                            <span>(${review.rating}/5)</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="review-comment">
+                            ${review.comment ? review.comment.substring(0, 100) + (review.comment.length > 100 ? '...' : '') : 'No comment'}
+                        </div>
+                    </td>
+                    <td>${new Date(review.created_at).toLocaleDateString()}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="action-btn delete" onclick="deleteReview(${review.id})" title="Delete Review">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        async function deleteReview(reviewId) {
+            if (confirm('Are you sure you want to delete this review?')) {
+                try {
+                    const response = await fetch(`/shopkeeper/admin/reviews/${reviewId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        showToast('Review deleted successfully', 'success');
+                        loadReviews(currentReviewsPage);
+                    } else {
+                        showToast(data.error || 'Failed to delete review', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting review:', error);
+                    showToast('Error deleting review', 'error');
+                }
+            }
+        }
+        
+        // === REPORTS & ANALYTICS ===
+        async function loadReports() {
+            try {
+                const period = document.getElementById('reportPeriod')?.value || 'month';
+                
+                // Load sales report
+                const salesResponse = await fetch(`/shopkeeper/admin/reports/sales?period=${period}`);
+                const salesData = await salesResponse.json();
+                
+                if (salesData.success) {
+                    renderSalesChart(salesData.salesData);
+                    renderTopProducts(salesData.topProducts);
+                }
+                
+                // Load user analytics
+                const userResponse = await fetch(`/shopkeeper/admin/reports/users`);
+                const userData = await userResponse.json();
+                
+                if (userData.success) {
+                    renderUserGrowthChart(userData.userGrowth);
+                }
+                
+            } catch (error) {
+                console.error('Error loading reports:', error);
+                showToast('Error loading reports', 'error');
+            }
+        }
+
+        function renderSalesChart(salesData) {
+            // Destroy existing chart if it exists
+            if (salesChart) {
+                salesChart.destroy();
+            }
+            
+            const ctx = document.getElementById('salesReportChart').getContext('2d');
+            salesChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: salesData.map(item => new Date(item.date).toLocaleDateString()),
+                    datasets: [{
+                        label: 'Revenue',
+                        data: salesData.map(item => item.revenue),
+                        borderColor: '#4a90e2',
+                        backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '₹' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderTopProducts(topProducts) {
+            const container = document.getElementById('topProductsList');
+            container.innerHTML = topProducts.map((product, index) => `
+                <div class="top-product-item">
+                    <span class="rank">#${index + 1}</span>
+                    <div class="product-details">
+                        <span class="product-name">${product.name}</span>
+                        <span class="product-stats">${product.total_sold} sold • ₹${parseFloat(product.revenue).toLocaleString()}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function renderUserGrowthChart(userGrowth) {
+            // Destroy existing chart if it exists
+            if (userGrowthChart) {
+                userGrowthChart.destroy();
+            }
+            
+            const ctx = document.getElementById('userGrowthChart').getContext('2d');
+            userGrowthChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: userGrowth.map(item => new Date(item.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })),
+                    datasets: [{
+                        label: 'New Users',
+                        data: userGrowth.map(item => item.new_users),
+                        backgroundColor: '#00c853',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        // === EXPORT FUNCTIONS ===
+        async function exportUsers() {
+            try {
+                const response = await fetch('/shopkeeper/admin/export/users?format=csv');
+                const blob = await response.blob();
+                
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'users_export.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                showToast('Users exported successfully', 'success');
+            } catch (error) {
+                console.error('Error exporting users:', error);
+                showToast('Error exporting users', 'error');
+            }
+        }
+        
+        async function exportOrders() {
+            try {
+                const response = await fetch('/shopkeeper/admin/export/orders?format=csv');
+                const blob = await response.blob();
+                
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'orders_export.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                showToast('Orders exported successfully', 'success');
+            } catch (error) {
+                console.error('Error exporting orders:', error);
+                showToast('Error exporting orders', 'error');
+            }
+        }
+        
+        async function exportReviews() {
+            try {
+                const response = await fetch('/shopkeeper/admin/export/reviews?format=csv');
+                const blob = await response.blob();
+                
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'reviews_export.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                showToast('Reviews exported successfully', 'success');
+            } catch (error) {
+                console.error('Error exporting reviews:', error);
+                showToast('Error exporting reviews', 'error');
+            }
+        }
+        
         function exportData() {
-            showToast('Exporting data...', 'info');
-            // Mock export functionality
-            setTimeout(() => {
-                showToast('Data exported successfully!', 'success');
-            }, 1500);
+            // General export based on current tab
+            switch(currentTab) {
+                case 'users':
+                    exportUsers();
+                    break;
+                case 'orders':
+                    exportOrders();
+                    break;
+                case 'reviews':
+                    exportReviews();
+                    break;
+                default:
+                    showToast('Select a tab to export data', 'info');
+            }
         }
 
         function showAnalytics() {
-            showToast('Analytics feature coming soon!', 'info');
+            switchTab('reports');
+        }
+        
+        function refreshReports() {
+            loadReports();
+            showToast('Reports refreshed', 'success');
+        }
+        
+        // === MODAL FUNCTIONS ===
+        function closeUserModal() {
+            document.getElementById('userModal').style.display = 'none';
+        }
+        
+        function closeOrderModal() {
+            document.getElementById('orderModal').style.display = 'none';
+        }
+        
+        function closeStatusModal() {
+            document.getElementById('statusModal').style.display = 'none';
+        }
+        
+        // === PAGINATION FUNCTIONS ===
+        function updateUsersPagination(pagination) {
+            const container = document.getElementById('usersPagination');
+            if (pagination.totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            let html = '';
+            for (let i = 1; i <= pagination.totalPages; i++) {
+                html += `<button class="page-btn ${i === pagination.currentPage ? 'active' : ''}" 
+                                onclick="loadUsers(${i})">${i}</button>`;
+            }
+            
+            container.innerHTML = html;
+            currentUsersPage = pagination.currentPage;
+        }
+        
+        function updateOrdersPagination(pagination) {
+            const container = document.getElementById('ordersPagination');
+            if (pagination.totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            let html = '';
+            for (let i = 1; i <= pagination.totalPages; i++) {
+                html += `<button class="page-btn ${i === pagination.currentPage ? 'active' : ''}" 
+                                onclick="loadOrders(${i})">${i}</button>`;
+            }
+            
+            container.innerHTML = html;
+            currentOrdersPage = pagination.currentPage;
+        }
+        
+        function updateReviewsPagination(pagination) {
+            const container = document.getElementById('reviewsPagination');
+            if (pagination.totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            let html = '';
+            for (let i = 1; i <= pagination.totalPages; i++) {
+                html += `<button class="page-btn ${i === pagination.currentPage ? 'active' : ''}" 
+                                onclick="loadReviews(${i})">${i}</button>`;
+            }
+            
+            container.innerHTML = html;
+            currentReviewsPage = pagination.currentPage;
         }
 
         function openAddProductModal() {

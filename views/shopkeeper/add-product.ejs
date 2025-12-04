@@ -41,6 +41,11 @@
                     <input type="number" id="price" name="price" step="0.01" value="<%= typeof values !== 'undefined' ? values.price || '' : '' %>" required>
                 </div>
                 <div class="form-group">
+                    <label for="stock_quantity">Stock Quantity</label>
+                    <input type="number" id="stock_quantity" name="stock_quantity" min="0" value="<%= typeof values !== 'undefined' ? values.stock_quantity || '0' : '0' %>" required>
+                    <small class="help-text">Enter the number of items available in inventory</small>
+                </div>
+                <div class="form-group">
                     <label for="image_url">Product Image URL</label>
                     <input type="url" id="image_url" name="image_url" placeholder="https://images.pexels.com/... or Google Drive link" value="<%= typeof values !== 'undefined' ? values.image_url || '' : '' %>">
                     <small class="help-text">

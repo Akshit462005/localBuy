@@ -122,7 +122,7 @@
                                 <button class="quick-view-btn" onclick="openQuickView(<%= index %>)">
                                     <i class="fas fa-eye"></i>
                                 </button>
-                                <button class="wishlist-btn" onclick="toggleWishlist(<%= product.id %>)">
+                                <button class="wishlist-btn" data-product-id="<%= product.id %>" onclick="toggleWishlist(<%= product.id %>, this)">
                                     <i class="far fa-heart"></i>
                                 </button>
                             </div>
@@ -146,6 +146,24 @@
                                     <span class="currency">₹</span>
                                     <span class="amount"><%= product.price %></span>
                                 </p>
+                                <div class="stock-info">
+                                    <% if (product.stock_quantity > 10) { %>
+                                        <span class="stock-badge available">
+                                            <i class="fas fa-check-circle"></i>
+                                            In Stock (<%= product.stock_quantity %>)
+                                        </span>
+                                    <% } else if (product.stock_quantity > 0) { %>
+                                        <span class="stock-badge limited">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            Only <%= product.stock_quantity %> left
+                                        </span>
+                                    <% } else { %>
+                                        <span class="stock-badge unavailable">
+                                            <i class="fas fa-times-circle"></i>
+                                            Out of Stock
+                                        </span>
+                                    <% } %>
+                                </div>
                                 <p class="shop-name">
                                     <i class="fas fa-store-alt"></i>
                                     <%= product.shopkeeper_name %>
@@ -153,14 +171,25 @@
                             </div>
                             
                             <div class="product-actions">
-                                <button class="btn primary add-to-cart-btn" onclick="addToCart(<%= product.id %>, this)">
-                                    <i class="fas fa-shopping-cart"></i>
-                                    <span>Add to Cart</span>
-                                </button>
-                                <button class="btn secondary quick-buy-btn" onclick="quickBuy(<%= product.id %>)">
-                                    <i class="fas fa-bolt"></i>
-                                    Quick Buy
-                                </button>
+                                <% if (product.stock_quantity > 0) { %>
+                                    <button class="btn primary add-to-cart-btn" onclick="addToCart(<%= product.id %>, this)">
+                                        <i class="fas fa-shopping-cart"></i>
+                                        <span>Add to Cart</span>
+                                    </button>
+                                    <button class="btn secondary quick-buy-btn" onclick="quickBuy(<%= product.id %>)">
+                                        <i class="fas fa-bolt"></i>
+                                        Quick Buy
+                                    </button>
+                                <% } else { %>
+                                    <button class="btn disabled" disabled>
+                                        <i class="fas fa-ban"></i>
+                                        <span>Out of Stock</span>
+                                    </button>
+                                    <button class="btn secondary" onclick="notifyWhenAvailable(<%= product.id %>)">
+                                        <i class="fas fa-bell"></i>
+                                        Notify Me
+                                    </button>
+                                <% } %>
                             </div>
                         </div>
                     </div>
@@ -250,8 +279,11 @@
             priceRange.value = maxPrice;
             document.getElementById('priceValue').textContent = maxPrice;
             
-            // Initialize wishlist UI
-            updateWishlistUI();
+            // Initialize wishlist UI after DOM is ready
+            setTimeout(() => {
+                updateWishlistUI();
+                console.log('✅ Wishlist UI initialized with', wishlist.length, 'items');
+            }, 100);
         }
 
         function setupEventListeners() {
@@ -274,7 +306,50 @@
             document.addEventListener('keydown', handleKeyboardShortcuts);
         }
 
-        function performSearch() {
+        async function performSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            const sortBy = document.getElementById('sortBy').value;
+            const maxPrice = document.getElementById('priceRange').value;
+            
+            try {
+                showSearchLoading(true);
+                
+                // Build query parameters
+                const params = new URLSearchParams();
+                if (query) params.append('query', query);
+                if (sortBy) params.append('sortBy', sortBy);
+                if (maxPrice) params.append('maxPrice', maxPrice);
+                params.append('page', '1');
+                params.append('limit', '50');
+                
+                const response = await fetch(`/user/api/search?${params.toString()}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update the product grid with server results
+                    updateProductGridWithServerResults(data.products);
+                    
+                    // Update pagination if needed
+                    if (data.pagination && data.pagination.totalPages > 1) {
+                        updateSearchPagination(data.pagination);
+                    }
+                    
+                    console.log(`🔍 Server search returned ${data.products.length} results`);
+                } else {
+                    console.error('Search failed:', data.error);
+                    showSearchError('Search failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error performing search:', error);
+                showSearchError('Connection error. Using cached results.');
+                // Fallback to client-side search
+                performClientSideSearch();
+            } finally {
+                showSearchLoading(false);
+            }
+        }
+
+        function performClientSideSearch() {
             const query = document.getElementById('searchInput').value.toLowerCase().trim();
             
             if (query === '') {
@@ -290,7 +365,112 @@
             applyFilters();
         }
 
+        function updateProductGridWithServerResults(products) {
+            const productGrid = document.getElementById('productGrid');
+            const noResults = document.getElementById('noResults');
+            
+            if (products.length === 0) {
+                productGrid.style.display = 'none';
+                noResults.style.display = 'block';
+                return;
+            }
+            
+            productGrid.style.display = isGridView ? 'grid' : 'block';
+            noResults.style.display = 'none';
+            
+            // Clear existing products
+            productGrid.innerHTML = '';
+            
+            // Add new products
+            products.forEach(product => {
+                const productCard = createProductCard(product);
+                productGrid.appendChild(productCard);
+            });
+        }
+
+        function createProductCard(product) {
+            const card = document.createElement('div');
+            card.className = `product-card ${isGridView ? 'grid-view' : 'list-view'}`;
+            card.setAttribute('data-product', JSON.stringify(product));
+            
+            const imageUrl = product.image_url || '/images/placeholder-product.jpg';
+            const isInWishlist = isProductInWishlist(product.id);
+            
+            card.innerHTML = `
+                <div class="product-image">
+                    <img src="${imageUrl}" alt="${product.name}" onerror="this.src='/images/placeholder-product.jpg'">
+                    <div class="product-badges">
+                        <span class="badge new">New</span>
+                    </div>
+                    <button class="wishlist-btn ${isInWishlist ? 'active' : ''}" data-product-id="${product.id}" onclick="toggleWishlist(${product.id}, this)" title="Add to Wishlist">
+                        <i class="${isInWishlist ? 'fas' : 'far'} fa-heart"></i>
+                    </button>
+                </div>
+                <div class="product-info">
+                    <div class="product-details">
+                        <h3 class="product-name" title="${product.name}">${product.name}</h3>
+                        <p class="product-description" title="${product.description}">${product.description.substring(0, 100)}${product.description.length > 100 ? '...' : ''}</p>
+                        <div class="shopkeeper-info">
+                            <i class="fas fa-store"></i>
+                            <span>by ${product.shopkeeper_name}</span>
+                        </div>
+                    </div>
+                    <div class="product-actions">
+                        <div class="price-section">
+                            <span class="current-price">₹${parseFloat(product.price).toLocaleString()}</span>
+                        </div>
+                        <button class="btn primary add-to-cart-btn" onclick="addToCart(${product.id})" title="Add to Cart">
+                            <i class="fas fa-cart-plus"></i>
+                            <span>Add to Cart</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        function showSearchLoading(show) {
+            const searchInput = document.getElementById('searchInput');
+            const productGrid = document.getElementById('productGrid');
+            
+            if (show) {
+                searchInput.style.opacity = '0.6';
+                if (!document.getElementById('searchLoading')) {
+                    const loader = document.createElement('div');
+                    loader.id = 'searchLoading';
+                    loader.className = 'search-loading';
+                    loader.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Searching...';
+                    productGrid.parentNode.insertBefore(loader, productGrid);
+                }
+            } else {
+                searchInput.style.opacity = '1';
+                const loader = document.getElementById('searchLoading');
+                if (loader) loader.remove();
+            }
+        }
+
+        function showSearchError(message) {
+            const toast = document.createElement('div');
+            toast.className = 'search-error-toast';
+            toast.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
         function applyFilters() {
+            const searchQuery = document.getElementById('searchInput').value.trim();
+            
+            // If there's a search query, use server-side search with filters
+            if (searchQuery) {
+                performSearch();
+                return;
+            }
+            
+            // Otherwise apply client-side filters to all products
             const sortBy = document.getElementById('sortBy').value;
             const maxPrice = parseFloat(document.getElementById('priceRange').value);
             
@@ -411,85 +591,85 @@
             }
         }
 
-        function addToCart(productId, buttonEl) {
+        async function addToCart(productId, buttonEl) {
             const originalText = buttonEl.innerHTML;
             buttonEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
             buttonEl.disabled = true;
             
             console.log('🛒 Adding product to cart:', productId);
             
-            // Add to cart with JSON response
-            fetch('/user/add-to-cart?format=json', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Accept': 'application/json'
-                },
-                body: `productId=${productId}`
-            })
-            .then(response => {
-                console.log('🔄 Add to cart response:', response.status, response.headers.get('content-type'));
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: Failed to add to cart`);
+            try {
+                // Find product data
+                const product = allProducts.find(p => p.id === productId);
+                if (!product) {
+                    throw new Error('Product not found');
                 }
                 
-                return response.json();
-            })
-            .then(data => {
-                console.log('📦 Cart response data:', data);
-                
-                if (data.success) {
-                    // Update cart count from server response
-                    const cartCount = data.cart.count || 0;
-                    
-                    console.log('📊 Updating cart count to:', cartCount);
-                    
-                    // Use global cart counter if available
-                    if (window.cartCounter) {
-                        window.cartCounter.updateCartElements(cartCount);
-                    } else {
-                        // Fallback to manual update
-                        const cartCountEl = document.getElementById('cartCount');
-                        if (cartCountEl) {
-                            cartCountEl.textContent = cartCount;
-                        }
-                        
-                        const cartBadges = document.querySelectorAll('.cart-badge, .cart-count');
-                        cartBadges.forEach(badge => {
-                            badge.textContent = cartCount;
-                            badge.style.display = cartCount > 0 ? 'inline' : 'none';
-                        });
-                    }
-                    
-                    // Trigger cart update event
-                    window.dispatchEvent(new CustomEvent('cartUpdated', { 
-                        detail: { count: cartCount } 
-                    }));
-                    
-                    // Show success message
-                    showToast(data.message || 'Product added to cart!', 'success');
+                // Use cart sync manager if available
+                if (window.cartSyncManager) {
+                    console.log('🔄 Using cart sync manager');
+                    await window.cartSyncManager.addItem(product);
                     
                     // Success animation
                     buttonEl.innerHTML = '<i class="fas fa-check"></i> Added!';
                     buttonEl.classList.add('success');
-                    
-                    // Reset button after 2 seconds
-                    setTimeout(() => {
-                        buttonEl.innerHTML = originalText;
-                        buttonEl.classList.remove('success');
-                        buttonEl.disabled = false;
-                    }, 2000);
                 } else {
-                    throw new Error(data.error || 'Failed to add to cart');
+                    // Fallback to traditional API call
+                    console.log('⚠️ Cart sync manager not available, using fallback');
+                    
+                    const response = await fetch('/user/add-to-cart?format=json', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Accept': 'application/json'
+                        },
+                        body: `productId=${productId}`
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: Failed to add to cart`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Update cart count from server response
+                        const cartCount = data.cart.count || 0;
+                        
+                        // Use global cart counter if available
+                        if (window.cartCounter) {
+                            window.cartCounter.updateCartElements(cartCount);
+                        } else {
+                            // Fallback to manual update
+                            const cartCountEl = document.getElementById('cartCount');
+                            if (cartCountEl) {
+                                cartCountEl.textContent = cartCount;
+                            }
+                        }
+                        
+                        showToast(data.message || 'Product added to cart!', 'success');
+                        
+                        // Success animation
+                        buttonEl.innerHTML = '<i class="fas fa-check"></i> Added!';
+                        buttonEl.classList.add('success');
+                    } else {
+                        throw new Error(data.error || 'Failed to add to cart');
+                    }
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
+                
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    buttonEl.innerHTML = originalText;
+                    buttonEl.classList.remove('success');
+                    buttonEl.disabled = false;
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error adding to cart:', error);
                 showToast('Failed to add to cart', 'error');
                 buttonEl.innerHTML = originalText;
                 buttonEl.disabled = false;
-            });
+            }
         }
 
         function quickBuy(productId) {
@@ -512,7 +692,11 @@
             });
         }
 
-        function toggleWishlist(productId) {
+        function isProductInWishlist(productId) {
+            return wishlist.includes(productId);
+        }
+
+        function toggleWishlist(productId, buttonElement) {
             const index = wishlist.indexOf(productId);
             if (index > -1) {
                 wishlist.splice(index, 1);
@@ -523,23 +707,50 @@
             }
             
             localStorage.setItem('wishlist', JSON.stringify(wishlist));
-            updateWishlistUI();
+            
+            // Update the specific button immediately if passed
+            if (buttonElement) {
+                updateSingleWishlistButton(buttonElement, productId);
+            } else {
+                updateWishlistUI();
+            }
+        }
+
+        function updateSingleWishlistButton(button, productId) {
+            const icon = button.querySelector('i');
+            
+            if (wishlist.includes(productId)) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                button.classList.add('active');
+            } else {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                button.classList.remove('active');
+            }
         }
 
         function updateWishlistUI() {
             const wishlistBtns = document.querySelectorAll('.wishlist-btn');
-            wishlistBtns.forEach((btn, index) => {
-                const productId = allProducts[index].id;
-                const icon = btn.querySelector('i');
+            wishlistBtns.forEach((btn) => {
+                // Get product ID from the button's onclick attribute or data attribute
+                const onclickAttr = btn.getAttribute('onclick');
+                let productId = null;
                 
-                if (wishlist.includes(productId)) {
-                    icon.classList.remove('far');
-                    icon.classList.add('fas');
-                    btn.classList.add('active');
-                } else {
-                    icon.classList.remove('fas');
-                    icon.classList.add('far');
-                    btn.classList.remove('active');
+                if (onclickAttr) {
+                    const match = onclickAttr.match(/toggleWishlist\(([^,)]+)/);
+                    if (match) {
+                        productId = parseInt(match[1]);
+                    }
+                }
+                
+                // Fallback: check if button has data-product-id
+                if (!productId) {
+                    productId = parseInt(btn.getAttribute('data-product-id'));
+                }
+                
+                if (productId) {
+                    updateSingleWishlistButton(btn, productId);
                 }
             });
         }
@@ -603,7 +814,13 @@
             } else {
                 // Fallback implementation
                 fetch('/user/cart?format=json')
-                    .then(response => response.json())
+                    .then(response => {
+                        if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
+                            return response.json();
+                        } else {
+                            throw new Error('Non-JSON response received');
+                        }
+                    })
                     .then(data => {
                         if (data.success) {
                             const cartCount = data.cart.count || 0;
@@ -620,6 +837,13 @@
                     .catch(error => {
                         console.error('Failed to update cart count:', error);
                         document.getElementById('cartCount').textContent = '0';
+                        
+                        // Update cart badges to show 0
+                        const cartBadges = document.querySelectorAll('.cart-badge, .cart-count');
+                        cartBadges.forEach(badge => {
+                            badge.textContent = '0';
+                            badge.style.display = 'none';
+                        });
                     });
             }
         }
@@ -690,6 +914,7 @@
             };
         }
     </script>
+    <script src="/js/cart-sync-manager.js"></script>
     <script src="/js/cart-counter.js"></script>
 </body>
 </html>
