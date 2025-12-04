@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cart Functions Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        button { margin: 5px; padding: 10px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>Cart Functions Test</h1>
+    
+    <div class="test-section">
+        <h2>Test Cart JSON Endpoint</h2>
+        <button onclick="testCartJSON()">Test /user/cart?format=json</button>
+        <div id="jsonResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Cart Sync Endpoint</h2>
+        <button onclick="testCartSync()">Test /api/cart/sync</button>
+        <div id="syncResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Function Availability Test</h2>
+        <button onclick="testFunctions()">Test JavaScript Functions</button>
+        <div id="functionsResult"></div>
+    </div>
+
+    <script>
+        // Test cart JSON endpoint
+        async function testCartJSON() {
+            const result = document.getElementById('jsonResult');
+            result.innerHTML = '<span class="info">Testing...</span>';
+            
+            try {
+                const response = await fetch('/user/cart?format=json');
+                const data = await response.json();
+                
+                if (data.success) {
+                    result.innerHTML = `<span class="success">✅ Success: Got cart data with ${data.cart.count} items</span>`;
+                } else {
+                    result.innerHTML = `<span class="error">❌ Failed: ${data.error || 'Unknown error'}</span>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+        
+        // Test cart sync endpoint
+        async function testCartSync() {
+            const result = document.getElementById('syncResult');
+            result.innerHTML = '<span class="info">Testing...</span>';
+            
+            try {
+                const testCart = {
+                    items: [],
+                    total: 0,
+                    count: 0
+                };
+                
+                const response = await fetch('/api/cart/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ cart: testCart })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    result.innerHTML = `<span class="success">✅ Success: ${data.message}</span>`;
+                } else {
+                    result.innerHTML = `<span class="error">❌ Failed: ${data.error || 'Unknown error'}</span>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+        
+        // Test function availability
+        function testFunctions() {
+            const result = document.getElementById('functionsResult');
+            const functions = ['clearCart', 'removeItem', 'toggleSelectAll', 'updateSelection'];
+            const results = [];
+            
+            functions.forEach(funcName => {
+                if (typeof window[funcName] === 'function') {
+                    results.push(`<span class="success">✅ ${funcName}: Available</span>`);
+                } else {
+                    results.push(`<span class="error">❌ ${funcName}: Not available</span>`);
+                }
+            });
+            
+            result.innerHTML = results.join('<br>');
+        }
+    </script>
+</body>
+</html>
+</script>
+</body>
+</html>

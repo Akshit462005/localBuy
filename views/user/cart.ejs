@@ -278,8 +278,8 @@
     <script src="/js/cache-integration.js"></script>
     
     <script>
-        // Define cart functions FIRST before HTML elements try to use them
-        function toggleSelectAll() {
+        // Define cart functions IMMEDIATELY and make them globally accessible
+        window.toggleSelectAll = function toggleSelectAll() {
             console.log('🔄 toggleSelectAll called');
             const selectAll = document.getElementById('selectAll');
             const checkboxes = document.querySelectorAll('.item-checkbox');
@@ -291,7 +291,7 @@
             updateSelection();
         }
 
-        function updateSelection() {
+        window.updateSelection = function updateSelection() {
             console.log('📋 updateSelection called');
             
             const checkboxes = document.querySelectorAll('.item-checkbox');
@@ -315,7 +315,7 @@
             }
         }
 
-        function clearCart() {
+        window.clearCart = function clearCart() {
             console.log('🧹 clearCart function called');
             
             const cartItems = document.querySelectorAll('.enhanced-cart-item');
@@ -392,7 +392,7 @@
             }
         }
 
-        function removeItem(itemId) {
+        window.removeItem = function removeItem(itemId) {
             console.log('🗑️ removeItem function called for item:', itemId);
             
             if (confirm('Are you sure you want to remove this item from your cart?')) {
@@ -483,7 +483,7 @@
             }
         }
 
-        function removeSelected() {
+        window.removeSelected = function removeSelected() {
             const selectedCheckboxes = Array.from(document.querySelectorAll('.item-checkbox:checked'));
             
             if (selectedCheckboxes.length === 0) {
@@ -518,12 +518,7 @@
             }
         }
 
-        // Make functions globally accessible immediately
-        window.clearCart = clearCart;
-        window.removeItem = removeItem;
-        window.removeSelected = removeSelected;
-        window.toggleSelectAll = toggleSelectAll;
-        window.updateSelection = updateSelection;
+        // Functions are already globally accessible via window.functionName definitions above
 
         // Initialize Session Storage cache system
         window.cache = new BrowserCache();
@@ -697,12 +692,7 @@
             console.log('✅ All cart event listeners attached');
         }
 
-        // Make functions globally accessible
-        window.clearCart = clearCart;
-        window.removeItem = removeItem;
-        window.removeSelected = removeSelected;
-        window.toggleSelectAll = toggleSelectAll;
-        window.updateSelection = updateSelection;
+        // Functions are already globally accessible - no need for reassignment
 
         function updateQuantity(itemId, action, value) {
             const quantityInput = document.getElementById(`quantity-${itemId}`);

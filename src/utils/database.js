@@ -1,6 +1,6 @@
 const { Pool } = require('pg');
 
-// Create a single pool instance with conservative connection limits for cloud hosting
+// Create a single pool instance optimized for serverless/Vercel environment
 const pool = new Pool({
     user: process.env.POSTGRES_USER,
     password: process.env.POSTGRES_PASSWORD,
@@ -8,16 +8,16 @@ const pool = new Pool({
     port: parseInt(process.env.POSTGRES_PORT || 5432),
     database: process.env.POSTGRES_DB,
     ssl: { rejectUnauthorized: false }, // Enable SSL for Aiven
-    // Conservative connection pool configuration for cloud databases
-    max: 3, // Very limited max connections to avoid "too many clients"
-    min: 1, // Keep at least one connection alive
-    idleTimeoutMillis: 10000, // Close idle connections after 10 seconds
-    connectionTimeoutMillis: 5000, // Return error after 5 seconds if unable to connect
-    acquireTimeoutMillis: 20000, // Pool will wait up to 20 seconds for connection
-    maxUses: 1000, // Close (and replace) a connection after it has been used 1000 times
-    statement_timeout: 30000, // Query timeout (30 seconds)
-    query_timeout: 30000,
-    application_name: 'LocalBuy_App' // Help identify connections in database logs
+    // Serverless-optimized connection pool configuration
+    max: 1, // Single connection for serverless to avoid conflicts
+    min: 0, // No minimum connections - let pool scale to zero
+    idleTimeoutMillis: 5000, // Close idle connections quickly (5 seconds)
+    connectionTimeoutMillis: 3000, // Fail fast if can't connect (3 seconds)
+    acquireTimeoutMillis: 3000, // Short timeout for acquiring connections
+    maxUses: 100, // Refresh connections more frequently for serverless
+    statement_timeout: 15000, // Shorter query timeout (15 seconds)
+    query_timeout: 15000,
+    application_name: 'LocalBuy_Serverless' // Identify serverless connections
 });
 
 // Handle pool errors
