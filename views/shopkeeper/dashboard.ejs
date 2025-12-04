@@ -537,7 +537,7 @@
         // Global variables
         let allProducts = [];
         let selectedProducts = [];
-        let salesChart, categoryChart;
+        let salesChart, categoryChart, userGrowthChart;
 
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
@@ -1619,10 +1619,6 @@
                 showToast('Error loading reports', 'error');
             }
         }
-        
-        // Chart instance variables
-        let salesChart = null;
-        let userGrowthChart = null;
 
         function renderSalesChart(salesData) {
             // Destroy existing chart if it exists
