@@ -278,6 +278,253 @@
     <script src="/js/cache-integration.js"></script>
     
     <script>
+        // Define cart functions FIRST before HTML elements try to use them
+        function toggleSelectAll() {
+            console.log('🔄 toggleSelectAll called');
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAll.checked;
+            });
+            
+            updateSelection();
+        }
+
+        function updateSelection() {
+            console.log('📋 updateSelection called');
+            
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+            const removeButton = document.getElementById('removeSelected');
+            
+            console.log('✓ Selected items count:', selectedCount);
+            console.log('🔘 Remove button found:', !!removeButton);
+            
+            if (removeButton) {
+                if (selectedCount > 0) {
+                    removeButton.style.display = 'inline-block';
+                    removeButton.innerHTML = `<i class="fas fa-trash"></i> Remove Selected (${selectedCount})`;
+                    console.log('✅ Remove button shown with count:', selectedCount);
+                } else {
+                    removeButton.style.display = 'none';
+                    console.log('❌ Remove button hidden');
+                }
+            } else {
+                console.error('❌ Remove selected button not found in DOM');
+            }
+        }
+
+        function clearCart() {
+            console.log('🧹 clearCart function called');
+            
+            const cartItems = document.querySelectorAll('.enhanced-cart-item');
+            console.log('📦 Found cart items:', cartItems.length);
+            
+            if (cartItems.length === 0) {
+                showToast('Cart is already empty', 'info');
+                return;
+            }
+            
+            console.log('⚠️ Showing confirmation dialog');
+            if (confirm('Are you sure you want to clear your entire cart? This action cannot be undone.')) {
+                console.log('✅ User confirmed cart clearing');
+                
+                const clearButton = document.getElementById('clearCart');
+                if (!clearButton) {
+                    console.error('❌ Clear button not found');
+                    showToast('Clear button not found', 'error');
+                    return;
+                }
+                
+                clearButton.disabled = true;
+                clearButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Clearing...';
+                
+                console.log('🧹 Clearing cart with items:', cartItems.length);
+                
+                // Get all item IDs
+                const itemIds = Array.from(cartItems)
+                    .map(item => item.getAttribute('data-item-id'))
+                    .filter(id => id);
+                
+                console.log('🔍 Item IDs to remove:', itemIds);
+                
+                if (itemIds.length === 0) {
+                    showToast('No valid items to remove', 'warning');
+                    clearButton.disabled = false;
+                    clearButton.innerHTML = '<i class="fas fa-trash"></i> Clear Cart';
+                    return;
+                }
+                
+                console.log('🗑️ Removing items:', itemIds);
+                
+                // Remove all items with better error handling
+                Promise.all(itemIds.map(itemId => 
+                    fetch(`/user/remove-from-cart/${itemId}`, { 
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin'
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                ))
+                .then(responses => {
+                    showToast('Cart cleared successfully', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                })
+                .catch(error => {
+                    console.error('Clear cart error:', error);
+                    clearButton.disabled = false;
+                    clearButton.innerHTML = '<i class="fas fa-trash"></i> Clear Cart';
+                    showToast('Failed to clear cart', 'error');
+                });
+            } else {
+                console.log('❌ User cancelled cart clearing');
+            }
+        }
+
+        function removeItem(itemId) {
+            console.log('🗑️ removeItem function called for item:', itemId);
+            
+            if (confirm('Are you sure you want to remove this item from your cart?')) {
+                console.log('✅ User confirmed item removal');
+                
+                const cartItem = document.querySelector(`[data-item-id="${itemId}"]`);
+                if (!cartItem) {
+                    console.error('❌ Cart item not found for ID:', itemId);
+                    showToast('Item not found', 'error');
+                    return;
+                }
+                
+                const removeButton = cartItem.querySelector('.action-btn.remove');
+                if (!removeButton) {
+                    console.error('❌ Remove button not found for item:', itemId);
+                    showToast('Remove button not found', 'error');
+                    return;
+                }
+                
+                // Show loading state
+                cartItem.style.opacity = '0.5';
+                removeButton.disabled = true;
+                removeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                
+                console.log('🗑️ Attempting to remove item:', itemId);
+                
+                // Send delete request to server
+                fetch(`/user/remove-from-cart/${itemId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Remove item from DOM with animation
+                        cartItem.style.transition = 'all 0.3s ease';
+                        cartItem.style.transform = 'translateX(-100%)';
+                        cartItem.style.opacity = '0';
+                        
+                        setTimeout(() => {
+                            cartItem.remove();
+                            updateCartTotals();
+                            
+                            // Update cache with new cart data
+                            if (window.cache && data.cart) {
+                                window.cache.set('server_cart', data.cart, 60);
+                            }
+                            
+                            // Update cart manager
+                            if (window.cartManager) {
+                                window.cartManager.removeItem(itemId);
+                            }
+                            
+                            showToast('Item removed from cart', 'success');
+                            
+                            // Check if cart is now empty
+                            if (document.querySelectorAll('.enhanced-cart-item').length === 0) {
+                                setTimeout(() => {
+                                    location.reload();
+                                }, 1000);
+                            }
+                        }, 300);
+                    } else {
+                        throw new Error(data.error || 'Failed to remove item');
+                    }
+                })
+                .catch(error => {
+                    console.error('Remove item error:', error);
+                    
+                    // Reset loading state
+                    cartItem.style.opacity = '1';
+                    removeButton.disabled = false;
+                    removeButton.innerHTML = '<i class="fas fa-trash"></i>';
+                    
+                    showToast('Failed to remove item: ' + error.message, 'error');
+                });
+            } else {
+                console.log('❌ User cancelled item removal');
+            }
+        }
+
+        function removeSelected() {
+            const selectedCheckboxes = Array.from(document.querySelectorAll('.item-checkbox:checked'));
+            
+            if (selectedCheckboxes.length === 0) {
+                showToast('No items selected', 'warning');
+                return;
+            }
+            
+            if (confirm(`Are you sure you want to remove ${selectedCheckboxes.length} selected item(s)?`)) {
+                const removeButton = document.getElementById('removeSelected');
+                removeButton.disabled = true;
+                removeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
+                
+                const itemIds = selectedCheckboxes.map(checkbox => {
+                    const cartItem = checkbox.closest('.enhanced-cart-item');
+                    return cartItem.getAttribute('data-item-id');
+                });
+                
+                Promise.all(itemIds.map(itemId => 
+                    fetch(`/user/remove-from-cart/${itemId}`, { method: 'DELETE' })
+                        .then(response => response.json())
+                ))
+                .then(responses => {
+                    showToast(`${itemIds.length} item(s) removed successfully`, 'success');
+                    setTimeout(() => location.reload(), 1000);
+                })
+                .catch(error => {
+                    console.error('Remove selected error:', error);
+                    removeButton.disabled = false;
+                    removeButton.innerHTML = '<i class="fas fa-trash"></i> Remove Selected';
+                    showToast('Failed to remove selected items', 'error');
+                });
+            }
+        }
+
+        // Make functions globally accessible immediately
+        window.clearCart = clearCart;
+        window.removeItem = removeItem;
+        window.removeSelected = removeSelected;
+        window.toggleSelectAll = toggleSelectAll;
+        window.updateSelection = updateSelection;
+
         // Initialize Session Storage cache system
         window.cache = new BrowserCache();
         window.cartManager = new CartManager();
@@ -296,7 +543,7 @@
             initializeCacheSystems();
         }
         
-        console.log('✅ Cart Page: Dual Cache System Ready');
+        console.log('✅ Cart Page: Functions defined and Cache System Ready');
 
         let cartData = {
             items: [],
@@ -625,171 +872,6 @@
             document.getElementById('grandTotal').textContent = `₹${grandTotal.toFixed(2)}`;
             document.getElementById('itemCount').textContent = itemCount;
             document.getElementById('summaryItemCount').textContent = itemCount;
-        }
-
-        function toggleSelectAll() {
-            const selectAll = document.getElementById('selectAll');
-            const checkboxes = document.querySelectorAll('.item-checkbox');
-            
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = selectAll.checked;
-            });
-            
-            updateSelection();
-        }
-
-        function updateSelection() {
-            console.log('📋 updateSelection called');
-            
-            const checkboxes = document.querySelectorAll('.item-checkbox');
-            const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
-            const removeButton = document.getElementById('removeSelected');
-            
-            console.log('☑️ Selected items count:', selectedCount);
-            console.log('🔘 Remove button found:', !!removeButton);
-            
-            if (removeButton) {
-                if (selectedCount > 0) {
-                    removeButton.style.display = 'inline-block';
-                    removeButton.innerHTML = `<i class="fas fa-trash"></i> Remove Selected (${selectedCount})`;
-                    console.log('✅ Remove button shown with count:', selectedCount);
-                } else {
-                    removeButton.style.display = 'none';
-                    console.log('❌ Remove button hidden');
-                }
-            } else {
-                console.error('❌ Remove selected button not found in DOM');
-            }
-        }
-
-        function clearCart() {
-            console.log('🧹 clearCart function called');
-            
-            const cartItems = document.querySelectorAll('.enhanced-cart-item');
-            console.log('📦 Found cart items:', cartItems.length);
-            
-            if (cartItems.length === 0) {
-                showToast('Cart is already empty', 'info');
-                return;
-            }
-            
-            console.log('⚠️ Showing confirmation dialog');
-            if (confirm('Are you sure you want to clear your entire cart? This action cannot be undone.')) {
-                console.log('✅ User confirmed cart clearing');
-                
-                const clearButton = document.getElementById('clearCart');
-                if (!clearButton) {
-                    console.error('❌ Clear button not found');
-                    showToast('Clear button not found', 'error');
-                    return;
-                }
-                
-                clearButton.disabled = true;
-                clearButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Clearing...';
-                
-                console.log('🧹 Clearing cart with items:', cartItems.length);
-                
-                // Get all item IDs
-                const itemIds = Array.from(cartItems)
-                    .map(item => item.getAttribute('data-item-id'))
-                    .filter(id => id); // Remove any null/undefined IDs
-                
-                console.log('🔍 Item IDs to remove:', itemIds);
-                
-                if (itemIds.length === 0) {
-                    showToast('No valid items to remove', 'warning');
-                    clearButton.disabled = false;
-                    clearButton.innerHTML = '<i class="fas fa-trash"></i> Clear Cart';
-                    return;
-                }
-                
-                console.log('🗑️ Removing items:', itemIds);
-                
-                // Remove all items with better error handling
-                Promise.all(itemIds.map(itemId => 
-                    fetch(`/user/remove-from-cart/${itemId}`, { 
-                        method: 'DELETE',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        credentials: 'same-origin'
-                    })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-                            return response.json();
-                        })
-                ))
-                .then(responses => {
-                    showToast('Cart cleared successfully', 'success');
-                    setTimeout(() => {
-                        location.reload();
-                    }, 1000);
-                })
-                .catch(error => {
-                    console.error('Clear cart error:', error);
-                    clearButton.disabled = false;
-                    clearButton.innerHTML = '<i class="fas fa-trash"></i> Clear Cart';
-                    showToast('Failed to clear cart', 'error');
-                });
-            }
-        }
-
-        function removeSelected() {
-            const selectedCheckboxes = Array.from(document.querySelectorAll('.item-checkbox:checked'));
-            
-            if (selectedCheckboxes.length === 0) {
-                showToast('No items selected', 'warning');
-                return;
-            }
-            
-            if (confirm(`Are you sure you want to remove ${selectedCheckboxes.length} selected item(s)?`)) {
-                const removeButton = document.getElementById('removeSelected');
-                removeButton.disabled = true;
-                removeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
-                
-                const itemIds = selectedCheckboxes.map(checkbox => {
-                    const cartItem = checkbox.closest('.enhanced-cart-item');
-                    return cartItem.getAttribute('data-item-id');
-                });
-                
-                Promise.all(itemIds.map(itemId => 
-                    fetch(`/user/remove-from-cart/${itemId}`, { method: 'DELETE' })
-                        .then(response => response.json())
-                ))
-                .then(responses => {
-                    showToast(`${itemIds.length} item(s) removed successfully`, 'success');
-                    
-                    // Remove items from DOM
-                    itemIds.forEach(itemId => {
-                        const cartItem = document.querySelector(`[data-item-id="${itemId}"]`);
-                        if (cartItem) {
-                            cartItem.style.transition = 'all 0.3s ease';
-                            cartItem.style.transform = 'translateX(-100%)';
-                            cartItem.style.opacity = '0';
-                            setTimeout(() => cartItem.remove(), 300);
-                        }
-                    });
-                    
-                    setTimeout(() => {
-                        updateCartTotals();
-                        updateSelection();
-                        
-                        // Check if cart is now empty
-                        if (document.querySelectorAll('.enhanced-cart-item').length === itemIds.length) {
-                            setTimeout(() => location.reload(), 1000);
-                        }
-                    }, 300);
-                })
-                .catch(error => {
-                    console.error('Remove selected error:', error);
-                    removeButton.disabled = false;
-                    removeButton.innerHTML = '<i class="fas fa-trash"></i> Remove Selected';
-                    showToast('Failed to remove selected items', 'error');
-                });
-            }
         }
 
         function applyCoupon() {
