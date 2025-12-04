@@ -280,6 +280,40 @@ router.delete('/remove-from-cart/:productId', auth, isUser, async (req, res) => 
     }
 });
 
+// Clear entire cart
+router.post('/clear-cart', auth, isUser, async (req, res) => {
+    try {
+        console.log('🗑️ Clearing entire cart for user:', req.user.id);
+        
+        // Clear session cart
+        req.session.cart = [];
+        
+        // Clear database cart
+        await pool.query('DELETE FROM cart WHERE user_id = $1', [req.user.id]);
+        
+        // Save session with timestamp
+        await new Promise((resolve, reject) => {
+            req.session.save(err => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+        
+        console.log('✅ Cart cleared successfully');
+        res.json({ 
+            success: true, 
+            message: 'Cart cleared successfully',
+            cart: { items: [], total: 0, count: 0, lastUpdated: Date.now() }
+        });
+    } catch (err) {
+        console.error('❌ Clear cart error:', err);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to clear cart' 
+        });
+    }
+});
+
 // Enhanced Checkout with proper order management
 router.post('/checkout', auth, isUser, async (req, res) => {
     const client = await pool.connect();

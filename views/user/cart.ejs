@@ -22,8 +22,11 @@
             try {
                 localStorage.removeItem('localBuy_cart');
                 localStorage.removeItem('cart_data');
+                localStorage.removeItem('localbuy_cart');
                 sessionStorage.removeItem('cart_data');
-                console.log('🗑️ Cleared all local storage');
+                // Set a flag to indicate cart was intentionally cleared
+                localStorage.setItem('cart_cleared_at', Date.now().toString());
+                console.log('🗑️ Cleared all local storage and set clear flag');
             } catch(e) { console.log('Storage clear error:', e); }
             
             // Get all cart items and remove them
@@ -31,7 +34,10 @@
             const itemIds = Array.from(cartItems).map(item => item.getAttribute('data-item-id')).filter(id => id);
             
             if (itemIds.length === 0) {
-                window.location.reload();
+                // Also send a clear request to server to update timestamp
+                fetch('/user/clear-cart', { method: 'POST' })
+                    .then(() => window.location.href = '/user/dashboard')
+                    .catch(() => window.location.href = '/user/dashboard');
                 return;
             }
             
@@ -39,10 +45,13 @@
             Promise.all(itemIds.map(itemId => 
                 fetch(`/user/remove-from-cart/${itemId}`, { method: 'DELETE' })
             )).then(() => {
-                window.location.reload();
+                // Send clear cart request to update server timestamp
+                fetch('/user/clear-cart', { method: 'POST' })
+                    .then(() => window.location.href = '/user/dashboard')
+                    .catch(() => window.location.href = '/user/dashboard');
             }).catch(err => {
                 console.error('Clear cart error:', err);
-                window.location.reload();
+                window.location.href = '/user/dashboard';
             });
         };
         
@@ -64,7 +73,10 @@
                         // Clear cache to prevent restoration
                         try {
                             localStorage.removeItem('localBuy_cart');
+                            localStorage.removeItem('localbuy_cart');
+                            localStorage.removeItem('cart_data');
                             sessionStorage.removeItem('cart_data');
+                            localStorage.setItem('cart_cleared_at', Date.now().toString());
                         } catch(e) {}
                         
                         // Reload after short delay
@@ -125,7 +137,10 @@
             // Clear cache first
             try {
                 localStorage.removeItem('localBuy_cart');
+                localStorage.removeItem('localbuy_cart');
+                localStorage.removeItem('cart_data');
                 sessionStorage.removeItem('cart_data');
+                localStorage.setItem('cart_cleared_at', Date.now().toString());
             } catch(e) {}
             
             Promise.all(itemIds.map(itemId => 
@@ -700,6 +715,19 @@
 
         // Functions are already globally accessible via window.functionName definitions above
 
+        // Check if cart was recently cleared and prevent restoration
+        try {
+            const cartClearedAt = localStorage.getItem('cart_cleared_at');
+            if (cartClearedAt && (Date.now() - parseInt(cartClearedAt)) < 600000) { // 10 minutes
+                console.log('🛑 Cart was recently cleared, preventing any restoration');
+                localStorage.removeItem('localBuy_cart');
+                localStorage.removeItem('cart_data');
+                sessionStorage.removeItem('cart_data');
+            }
+        } catch(e) {
+            console.log('Clear flag check error:', e);
+        }
+        
         // Initialize Session Storage cache system
         window.cache = new BrowserCache();
         window.cartManager = new CartManager();

@@ -73,6 +73,21 @@ class CartSyncManager {
     }
 
     /**
+     * Clear all local cart storage
+     */
+    clearLocalStorage() {
+        try {
+            localStorage.removeItem(this.localStorageKey);
+            localStorage.removeItem('cart_data');
+            localStorage.removeItem('localBuy_cart');
+            sessionStorage.removeItem('cart_data');
+            console.log('🗑️ Cleared all local cart storage');
+        } catch (error) {
+            console.error('Error clearing localStorage:', error);
+        }
+    }
+
+    /**
      * Get cart from server
      */
     async getServerCart() {
@@ -130,6 +145,24 @@ class CartSyncManager {
      */
     mergeCarts(localCart, serverCart) {
         console.log('🔀 Merging carts...');
+        
+        // Check if cart was recently cleared by user
+        try {
+            const cartClearedAt = localStorage.getItem('cart_cleared_at');
+            if (cartClearedAt && (Date.now() - parseInt(cartClearedAt)) < 600000) { // 10 minutes
+                console.log('🛑 Cart was recently cleared by user, not restoring');
+                this.clearLocalStorage();
+                return { items: [], total: 0, count: 0, lastUpdated: Date.now() };
+            }
+        } catch(e) {}
+        
+        // If server cart is empty and recent, don't restore from local
+        if (!serverCart.items?.length && serverCart.lastUpdated && 
+            (Date.now() - serverCart.lastUpdated) < 300000) { // 5 minutes
+            console.log('🛑 Server cart recently cleared, not restoring from local');
+            this.clearLocalStorage();
+            return serverCart;
+        }
         
         // If one cart is empty, return the other
         if (!localCart.items?.length) return serverCart;
