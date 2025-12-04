@@ -125,6 +125,62 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Order Status Stats -->
+            <div class="order-status-stats">
+                <h3><i class="fas fa-chart-bar"></i> Order Status Overview</h3>
+                <div class="status-cards">
+                    <div class="status-card pending">
+                        <div class="status-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="status-content">
+                            <h4 id="pendingOrders">0</h4>
+                            <p>Pending</p>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card processing">
+                        <div class="status-icon">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <div class="status-content">
+                            <h4 id="processingOrders">0</h4>
+                            <p>Processing</p>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card shipped">
+                        <div class="status-icon">
+                            <i class="fas fa-truck"></i>
+                        </div>
+                        <div class="status-content">
+                            <h4 id="shippedOrders">0</h4>
+                            <p>Shipped</p>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card delivered">
+                        <div class="status-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="status-content">
+                            <h4 id="deliveredOrders">0</h4>
+                            <p>Delivered</p>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card cancelled">
+                        <div class="status-icon">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div class="status-content">
+                            <h4 id="cancelledOrders">0</h4>
+                            <p>Cancelled</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
             <div class="charts-container">
                 <div class="chart-card">
@@ -624,6 +680,15 @@
                 const formattedRevenue = Number(data.totalRevenue).toLocaleString('en-IN', { maximumFractionDigits: 2 });
                 document.getElementById('totalRevenue').textContent = `₹${formattedRevenue}`;
 
+                // Update order status counts
+                if (data.orderStatus) {
+                    document.getElementById('pendingOrders').textContent = data.orderStatus.pending || 0;
+                    document.getElementById('processingOrders').textContent = data.orderStatus.processing || 0;
+                    document.getElementById('shippedOrders').textContent = data.orderStatus.shipped || 0;
+                    document.getElementById('deliveredOrders').textContent = data.orderStatus.delivered || 0;
+                    document.getElementById('cancelledOrders').textContent = data.orderStatus.cancelled || 0;
+                }
+
             } catch (err) {
                 console.error('Error fetching dashboard metrics:', err);
             }
@@ -1076,8 +1141,12 @@
                 document.querySelector('.products-management').style.display = 'block';
             }
             
-            // Add active class to clicked button
-            event.target.classList.add('active');
+            // Add active class to the correct button
+            const tabButton = document.querySelector(`[onclick*="switchTab('${tabName}')"]`);
+            if (tabButton) {
+                tabButton.classList.add('active');
+            }
+            
             currentTab = tabName;
             
             // Load data for the tab

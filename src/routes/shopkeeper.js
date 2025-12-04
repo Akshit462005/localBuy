@@ -153,6 +153,17 @@ router.get('/dashboard/metrics', auth, isShopkeeper, async (req, res) => {
             [shopkeeperId]
         );
 
+        // Order status breakdown
+        const orderStatusPromise = pool.query(
+            `SELECT o.status, COUNT(DISTINCT oi.order_id) AS count
+             FROM order_items oi
+             JOIN products p ON oi.product_id = p.id
+             JOIN orders o ON oi.order_id = o.id
+             WHERE p.shopkeeper_id = $1
+             GROUP BY o.status`,
+            [shopkeeperId]
+        );
+
         // Total unique customers who ordered this shopkeeper's products
         const customersPromise = pool.query(
             `SELECT COUNT(DISTINCT o.user_id) AS total_customers
@@ -163,11 +174,12 @@ router.get('/dashboard/metrics', auth, isShopkeeper, async (req, res) => {
             [shopkeeperId]
         );
 
-        const [productsRes, revenueRes, ordersRes, customersRes] = await Promise.all([
+        const [productsRes, revenueRes, ordersRes, customersRes, orderStatusRes] = await Promise.all([
             productsPromise,
             revenuePromise,
             ordersPromise,
-            customersPromise
+            customersPromise,
+            orderStatusPromise
         ]);
 
         const totalProducts = parseInt(productsRes.rows[0].total_products, 10) || 0;
@@ -175,7 +187,26 @@ router.get('/dashboard/metrics', auth, isShopkeeper, async (req, res) => {
         const totalOrders = parseInt(ordersRes.rows[0].total_orders, 10) || 0;
         const totalCustomers = parseInt(customersRes.rows[0].total_customers, 10) || 0;
 
-        const payload = { totalProducts, totalRevenue, totalOrders, totalCustomers };
+        // Process order status counts
+        const orderStatusCounts = {
+            pending: 0,
+            processing: 0,
+            shipped: 0,
+            delivered: 0,
+            cancelled: 0
+        };
+
+        orderStatusRes.rows.forEach(row => {
+            orderStatusCounts[row.status] = parseInt(row.count, 10) || 0;
+        });
+
+        const payload = { 
+            totalProducts, 
+            totalRevenue, 
+            totalOrders, 
+            totalCustomers,
+            orderStatus: orderStatusCounts
+        };
 
         // store in cache (short TTL for near-real-time)
         try {
