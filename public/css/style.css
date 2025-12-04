@@ -152,16 +152,30 @@ nav {
     font-size: 0.98rem;
 }
 
-.primary {
+.btn.primary {
     background-color: var(--primary-color);
     color: white;
     padding: 0.8rem 1.4rem;
 }
 
-.primary:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(0,0,0,0.18); }
+.btn.primary:hover { 
+    background-color: #3a7bc8;
+    transform: translateY(-2px); 
+    box-shadow: 0 8px 18px rgba(0,0,0,0.18); 
+}
 
-.secondary { background-color: rgba(255,255,255,0.14); color: white; border: 1px solid rgba(255,255,255,0.18); }
-.secondary:hover { transform: translateY(-3px); box-shadow: 0 6px 14px rgba(0,0,0,0.12); }
+.btn.secondary {
+    background-color: #6c757d;
+    color: white;
+    border: 1px solid #6c757d;
+}
+
+.btn.secondary:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+}
 
 .danger {
     background-color: var(--danger-color);
@@ -1406,6 +1420,10 @@ footer {
     font-size: 0.9rem;
     border-radius: 8px;
     transition: var(--transition);
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    text-decoration: none;
 }
 
 .add-to-cart-btn.success {
@@ -3420,6 +3438,23 @@ footer {
     font-size: 0.9rem;
     border-radius: 8px;
     transition: var(--transition);
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    text-decoration: none;
+}
+
+/* Ensure quick buy button visibility */
+.btn.secondary.quick-buy-btn {
+    background-color: #6c757d !important;
+    color: white !important;
+    border: 1px solid #6c757d;
+}
+
+.btn.secondary.quick-buy-btn:hover {
+    background-color: #5a6268 !important;
+    border-color: #545b62;
+    transform: translateY(-2px);
 }
 
 .add-to-cart-btn.success {
@@ -4291,6 +4326,26 @@ footer {
 .form-group input[type="url"] {
     width: 100%;
     padding: 0.75rem;
+}
+
+/* IMPORTANT: Fix for Quick Buy Button Visibility */
+.quick-buy-btn {
+    background-color: #6c757d !important;
+    color: white !important;
+    border: 1px solid #6c757d !important;
+    font-weight: 600 !important;
+}
+
+.quick-buy-btn:hover {
+    background-color: #5a6268 !important;
+    border-color: #545b62 !important;
+    color: white !important;
+    transform: translateY(-2px) !important;
+}
+
+.quick-buy-btn i {
+    color: white !important;
+}
     border: 1px solid #ddd;
     border-radius: 8px;
     font-size: 1rem;
@@ -4311,4 +4366,9 @@ footer {
     border-radius: 6px;
     font-size: 0.9rem;
     border-left: 3px solid var(--accent-color);
+}
+
+/* Cart count padding override */
+.cart-count {
+    padding-left: 6px;
 }

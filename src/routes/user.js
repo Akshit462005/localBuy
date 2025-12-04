@@ -50,8 +50,13 @@ router.post('/add-to-cart', auth, isUser, async (req, res) => {
         
         if (!product) {
             console.log('❌ Product not found:', productId);
-            if (req.headers['content-type']?.includes('application/json')) {
-                return res.status(404).json({ error: 'Product not found' });
+            if (req.headers['accept']?.includes('application/json') || 
+                req.headers['content-type']?.includes('application/json') || 
+                req.query.format === 'json') {
+                return res.status(404).json({ 
+                    success: false, 
+                    error: 'Product not found' 
+                });
             }
             return res.render('error', { message: 'Product not found' });
         }
@@ -100,10 +105,15 @@ router.post('/add-to-cart', auth, isUser, async (req, res) => {
             console.log('💾 Cart saved successfully to session:', req.sessionID);
         
             // API response for cache integration
-            if (req.headers['content-type']?.includes('application/json') || req.query.format === 'json') {
+            if (req.headers['accept']?.includes('application/json') || 
+                req.headers['content-type']?.includes('application/json') || 
+                req.query.format === 'json') {
+                
                 const cart = req.session.cart || [];
                 const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                 const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+                
+                console.log('📡 Sending JSON response:', { count, total, itemsCount: cart.length });
                 
                 return res.json({
                     success: true,
@@ -120,10 +130,16 @@ router.post('/add-to-cart', auth, isUser, async (req, res) => {
             res.redirect('/user/cart');
         });
     } catch (err) {
-        if (req.headers['content-type']?.includes('application/json')) {
-            return res.status(500).json({ error: 'Error adding to cart' });
+        console.error('❌ Add to cart error:', err);
+        if (req.headers['accept']?.includes('application/json') || 
+            req.headers['content-type']?.includes('application/json') || 
+            req.query.format === 'json') {
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Error adding to cart: ' + err.message 
+            });
         }
-        res.render('error', { message: 'Error adding to cart' });
+        res.render('error', { message: 'Error adding to cart: ' + err.message });
     }
 });
 
@@ -228,6 +244,46 @@ router.post('/update-cart', auth, isUser, async (req, res) => {
     } catch (err) {
         console.error('❌ Cart update error:', err);
         res.redirect('/user/cart');
+    }
+});
+
+// Remove item from cart
+router.delete('/remove-from-cart/:productId', auth, isUser, async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const cart = req.session.cart || [];
+        
+        console.log('🗑️ Remove item request:', { productId, userId: req.user.id });
+        
+        // Remove from session cart
+        req.session.cart = cart.filter(item => item.id !== parseInt(productId));
+        
+        // Remove from database
+        await pool.query('DELETE FROM cart WHERE user_id = $1 AND product_id = $2', 
+            [req.user.id, parseInt(productId)]);
+        
+        console.log('✅ Item removed successfully from cart');
+        
+        // Calculate new totals
+        const newCart = req.session.cart || [];
+        const total = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const count = newCart.reduce((sum, item) => sum + item.quantity, 0);
+        
+        res.json({
+            success: true,
+            message: 'Item removed from cart',
+            cart: {
+                items: newCart,
+                total: total,
+                count: count
+            }
+        });
+    } catch (err) {
+        console.error('❌ Remove cart item error:', err);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to remove item from cart' 
+        });
     }
 });
 

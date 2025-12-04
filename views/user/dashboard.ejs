@@ -390,61 +390,72 @@
             buttonEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
             buttonEl.disabled = true;
             
+            console.log('🛒 Adding product to cart:', productId);
+            
             // Add to cart with JSON response
             fetch('/user/add-to-cart?format=json', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
+                    'Accept': 'application/json'
                 },
                 body: `productId=${productId}`
             })
             .then(response => {
-                if (response.ok) {
-                    // Check if response is JSON (for API responses) or redirect (for regular form submission)
-                    const contentType = response.headers.get('content-type');
-                    if (contentType && contentType.includes('application/json')) {
-                        return response.json().then(data => {
-                            if (data.success) {
-                                // Update cart count from server response
-                                const cartCount = data.cart.count || 0;
-                                
-                                // Use global cart counter if available
-                                if (window.cartCounter) {
-                                    window.cartCounter.updateCartElements(cartCount);
-                                } else {
-                                    // Fallback to manual update
-                                    document.getElementById('cartCount').textContent = cartCount;
-                                    const cartBadges = document.querySelectorAll('.cart-badge, .cart-count');
-                                    cartBadges.forEach(badge => {
-                                        badge.textContent = cartCount;
-                                        badge.style.display = cartCount > 0 ? 'inline' : 'none';
-                                    });
-                                }
-                                
-                                // Trigger cart update event
-                                window.dispatchEvent(new CustomEvent('cartUpdated', { 
-                                    detail: { count: cartCount } 
-                                }));
-                            }
-                        });
+                console.log('🔄 Add to cart response:', response.status, response.headers.get('content-type'));
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: Failed to add to cart`);
+                }
+                
+                return response.json();
+            })
+            .then(data => {
+                console.log('📦 Cart response data:', data);
+                
+                if (data.success) {
+                    // Update cart count from server response
+                    const cartCount = data.cart.count || 0;
+                    
+                    console.log('📊 Updating cart count to:', cartCount);
+                    
+                    // Use global cart counter if available
+                    if (window.cartCounter) {
+                        window.cartCounter.updateCartElements(cartCount);
                     } else {
-                        // Regular redirect response, update cart count separately
-                        updateCartCount();
+                        // Fallback to manual update
+                        const cartCountEl = document.getElementById('cartCount');
+                        if (cartCountEl) {
+                            cartCountEl.textContent = cartCount;
+                        }
+                        
+                        const cartBadges = document.querySelectorAll('.cart-badge, .cart-count');
+                        cartBadges.forEach(badge => {
+                            badge.textContent = cartCount;
+                            badge.style.display = cartCount > 0 ? 'inline' : 'none';
+                        });
                     }
                     
-                    showToast('Product added to cart!', 'success');
+                    // Trigger cart update event
+                    window.dispatchEvent(new CustomEvent('cartUpdated', { 
+                        detail: { count: cartCount } 
+                    }));
+                    
+                    // Show success message
+                    showToast(data.message || 'Product added to cart!', 'success');
                     
                     // Success animation
                     buttonEl.innerHTML = '<i class="fas fa-check"></i> Added!';
                     buttonEl.classList.add('success');
                     
+                    // Reset button after 2 seconds
                     setTimeout(() => {
                         buttonEl.innerHTML = originalText;
                         buttonEl.classList.remove('success');
                         buttonEl.disabled = false;
                     }, 2000);
                 } else {
-                    throw new Error('Failed to add to cart');
+                    throw new Error(data.error || 'Failed to add to cart');
                 }
             })
             .catch(error => {
