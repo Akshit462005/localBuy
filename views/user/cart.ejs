@@ -63,7 +63,7 @@
                         <div class="bulk-actions">
                             <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
                             <label for="selectAll">Select All</label>
-                            <button id="removeSelected" class="btn danger small" style="display: none;">
+                            <button id="removeSelected" class="btn danger small" onclick="removeSelected()" style="display: none;">
                                 <i class="fas fa-trash"></i> Remove Selected
                             </button>
                         </div>
@@ -389,15 +389,14 @@
                 });
             });
             
-            // Clear cart button
+            // Clear cart button - use both onclick and addEventListener for reliability
             const clearCartBtn = document.getElementById('clearCart');
             if (clearCartBtn) {
                 console.log('✅ Clear cart button found, attaching event');
-                // Remove any existing listeners first
-                clearCartBtn.replaceWith(clearCartBtn.cloneNode(true));
-                const newClearCartBtn = document.getElementById('clearCart');
-                newClearCartBtn.addEventListener('click', function(e) {
+                clearCartBtn.addEventListener('click', function(e) {
                     e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🧹 Clear cart button clicked via addEventListener');
                     clearCart();
                 });
             } else {
@@ -408,22 +407,41 @@
             const removeSelectedBtn = document.getElementById('removeSelected');
             if (removeSelectedBtn) {
                 console.log('✅ Remove selected button found, attaching event');
-                removeSelectedBtn.replaceWith(removeSelectedBtn.cloneNode(true));
-                const newRemoveSelectedBtn = document.getElementById('removeSelected');
-                newRemoveSelectedBtn.addEventListener('click', function(e) {
+                removeSelectedBtn.addEventListener('click', function(e) {
                     e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🗑️ Remove selected button clicked via addEventListener');
                     removeSelected();
                 });
             } else {
                 console.warn('⚠️ Remove selected button not found');
             }
             
+            // Select All checkbox
+            const selectAllCheckbox = document.getElementById('selectAll');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.addEventListener('change', function(e) {
+                    console.log('📋 Select all checkbox changed:', this.checked);
+                    toggleSelectAll();
+                });
+            }
+            
+            // Individual item checkboxes
+            document.querySelectorAll('.item-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function(e) {
+                    console.log('☑️ Item checkbox changed');
+                    updateSelection();
+                });
+            });
+            
             // Attach remove item button events
             document.querySelectorAll('.action-btn.remove').forEach(button => {
                 button.addEventListener('click', function(e) {
                     e.preventDefault();
+                    e.stopPropagation();
                     const itemId = this.closest('[data-item-id]').getAttribute('data-item-id');
                     if (itemId) {
+                        console.log('🗑️ Remove item button clicked for item:', itemId);
                         removeItem(itemId);
                     }
                 });
@@ -431,6 +449,13 @@
             
             console.log('✅ All cart event listeners attached');
         }
+
+        // Make functions globally accessible
+        window.clearCart = clearCart;
+        window.removeItem = removeItem;
+        window.removeSelected = removeSelected;
+        window.toggleSelectAll = toggleSelectAll;
+        window.updateSelection = updateSelection;
 
         function updateQuantity(itemId, action, value) {
             const quantityInput = document.getElementById(`quantity-${itemId}`);
@@ -493,15 +518,21 @@
         }
 
         function removeItem(itemId) {
+            console.log('🗑️ removeItem function called for item:', itemId);
+            
             if (confirm('Are you sure you want to remove this item from your cart?')) {
+                console.log('✅ User confirmed item removal');
+                
                 const cartItem = document.querySelector(`[data-item-id="${itemId}"]`);
                 if (!cartItem) {
+                    console.error('❌ Cart item not found for ID:', itemId);
                     showToast('Item not found', 'error');
                     return;
                 }
                 
                 const removeButton = cartItem.querySelector('.action-btn.remove');
                 if (!removeButton) {
+                    console.error('❌ Remove button not found for item:', itemId);
                     showToast('Remove button not found', 'error');
                     return;
                 }
@@ -608,28 +639,47 @@
         }
 
         function updateSelection() {
+            console.log('📋 updateSelection called');
+            
             const checkboxes = document.querySelectorAll('.item-checkbox');
             const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
             const removeButton = document.getElementById('removeSelected');
             
-            if (selectedCount > 0) {
-                removeButton.style.display = 'inline-block';
-                removeButton.textContent = `Remove Selected (${selectedCount})`;
+            console.log('☑️ Selected items count:', selectedCount);
+            console.log('🔘 Remove button found:', !!removeButton);
+            
+            if (removeButton) {
+                if (selectedCount > 0) {
+                    removeButton.style.display = 'inline-block';
+                    removeButton.innerHTML = `<i class="fas fa-trash"></i> Remove Selected (${selectedCount})`;
+                    console.log('✅ Remove button shown with count:', selectedCount);
+                } else {
+                    removeButton.style.display = 'none';
+                    console.log('❌ Remove button hidden');
+                }
             } else {
-                removeButton.style.display = 'none';
+                console.error('❌ Remove selected button not found in DOM');
             }
         }
 
         function clearCart() {
+            console.log('🧹 clearCart function called');
+            
             const cartItems = document.querySelectorAll('.enhanced-cart-item');
+            console.log('📦 Found cart items:', cartItems.length);
+            
             if (cartItems.length === 0) {
                 showToast('Cart is already empty', 'info');
                 return;
             }
             
+            console.log('⚠️ Showing confirmation dialog');
             if (confirm('Are you sure you want to clear your entire cart? This action cannot be undone.')) {
+                console.log('✅ User confirmed cart clearing');
+                
                 const clearButton = document.getElementById('clearCart');
                 if (!clearButton) {
+                    console.error('❌ Clear button not found');
                     showToast('Clear button not found', 'error');
                     return;
                 }
@@ -643,6 +693,8 @@
                 const itemIds = Array.from(cartItems)
                     .map(item => item.getAttribute('data-item-id'))
                     .filter(id => id); // Remove any null/undefined IDs
+                
+                console.log('🔍 Item IDs to remove:', itemIds);
                 
                 if (itemIds.length === 0) {
                     showToast('No valid items to remove', 'warning');
