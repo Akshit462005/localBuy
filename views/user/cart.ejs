@@ -18,16 +18,11 @@
                 return;
             }
             
-            // Clear all storage first to prevent restoration
+            // Set flag to prevent sync restoration (keep storage intact)
             try {
-                localStorage.removeItem('localBuy_cart');
-                localStorage.removeItem('cart_data');
-                localStorage.removeItem('localbuy_cart');
-                sessionStorage.removeItem('cart_data');
-                // Set a flag to indicate cart was intentionally cleared
                 localStorage.setItem('cart_cleared_at', Date.now().toString());
-                console.log('🗑️ Cleared all local storage and set clear flag');
-            } catch(e) { console.log('Storage clear error:', e); }
+                console.log('🗑️ Set clear flag to prevent sync restoration');
+            } catch(e) { console.log('Clear flag error:', e); }
             
             // Get all cart items and remove them
             const cartItems = document.querySelectorAll('.enhanced-cart-item');
@@ -70,12 +65,8 @@
                         const cartItem = document.querySelector(`[data-item-id="${itemId}"]`);
                         if (cartItem) cartItem.remove();
                         
-                        // Clear cache to prevent restoration
+                        // Set flag to prevent sync restoration
                         try {
-                            localStorage.removeItem('localBuy_cart');
-                            localStorage.removeItem('localbuy_cart');
-                            localStorage.removeItem('cart_data');
-                            sessionStorage.removeItem('cart_data');
                             localStorage.setItem('cart_cleared_at', Date.now().toString());
                         } catch(e) {}
                         
@@ -134,12 +125,8 @@
                 return cartItem ? cartItem.getAttribute('data-item-id') : null;
             }).filter(id => id);
             
-            // Clear cache first
+            // Set flag to prevent sync restoration
             try {
-                localStorage.removeItem('localBuy_cart');
-                localStorage.removeItem('localbuy_cart');
-                localStorage.removeItem('cart_data');
-                sessionStorage.removeItem('cart_data');
                 localStorage.setItem('cart_cleared_at', Date.now().toString());
             } catch(e) {}
             
@@ -715,18 +702,7 @@
 
         // Functions are already globally accessible via window.functionName definitions above
 
-        // Check if cart was recently cleared and prevent restoration
-        try {
-            const cartClearedAt = localStorage.getItem('cart_cleared_at');
-            if (cartClearedAt && (Date.now() - parseInt(cartClearedAt)) < 600000) { // 10 minutes
-                console.log('🛑 Cart was recently cleared, preventing any restoration');
-                localStorage.removeItem('localBuy_cart');
-                localStorage.removeItem('cart_data');
-                sessionStorage.removeItem('cart_data');
-            }
-        } catch(e) {
-            console.log('Clear flag check error:', e);
-        }
+        // Cart sync manager will handle clear flag detection automatically
         
         // Initialize Session Storage cache system
         window.cache = new BrowserCache();
