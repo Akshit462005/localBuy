@@ -6,6 +6,49 @@
     <title>Shopping Cart - LocalBuy</title>
     <link rel="stylesheet" href="/css/style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Define cart functions immediately in HEAD to ensure they're available -->
+    <script>
+        console.log('🚀 Defining cart functions in HEAD...');
+        
+        window.clearCart = function() {
+            console.log('🧹 clearCart called from HEAD definition');
+            if (confirm('Are you sure you want to clear your entire cart?')) {
+                window.location.reload();
+            }
+        };
+        
+        window.removeItem = function(itemId) {
+            console.log('🗑️ removeItem called from HEAD definition for item:', itemId);
+            if (confirm('Are you sure you want to remove this item?')) {
+                fetch(`/user/remove-from-cart/${itemId}`, { method: 'DELETE' })
+                    .then(() => window.location.reload())
+                    .catch(err => console.error('Error:', err));
+            }
+        };
+        
+        window.toggleSelectAll = function() {
+            console.log('📋 toggleSelectAll called from HEAD definition');
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            if (selectAll && checkboxes) {
+                checkboxes.forEach(cb => cb.checked = selectAll.checked);
+                window.updateSelection();
+            }
+        };
+        
+        window.updateSelection = function() {
+            console.log('✅ updateSelection called from HEAD definition');
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+            const removeButton = document.getElementById('removeSelected');
+            if (removeButton) {
+                removeButton.style.display = selectedCount > 0 ? 'inline-block' : 'none';
+            }
+        };
+        
+        console.log('✅ Cart functions defined in HEAD and available globally');
+    </script>
 </head>
 <body>
     <header>
@@ -288,7 +331,7 @@
                 checkbox.checked = selectAll.checked;
             });
             
-            updateSelection();
+            window.updateSelection();
         }
 
         window.updateSelection = function updateSelection() {
@@ -672,7 +715,7 @@
             document.querySelectorAll('.item-checkbox').forEach(checkbox => {
                 checkbox.addEventListener('change', function(e) {
                     console.log('☑️ Item checkbox changed');
-                    updateSelection();
+                    window.updateSelection();
                 });
             });
             

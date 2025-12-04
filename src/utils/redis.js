@@ -2,13 +2,21 @@ const { createClient } = require('redis');
 
 class RedisCache {
     constructor() {
-        console.log('🔧 Initializing Redis Cache Client...');
+        console.log('🔧 Initializing Redis Cache Client for serverless...');
         
-        // Use same configuration as app.js for consistency
+        // Optimized Redis configuration for serverless/Vercel
         const redisUrl = process.env.REDIS_URL;
         if (redisUrl) {
             console.log('📡 Using REDIS_URL for connection');
-            this.client = createClient({ url: redisUrl });
+            this.client = createClient({ 
+                url: redisUrl,
+                socket: {
+                    reconnectStrategy: (retries) => retries < 3 ? Math.min(retries * 50, 500) : false,
+                    connectTimeout: 3000,
+                    lazyConnect: true
+                },
+                database: 0
+            });
         } else {
             const username = process.env.REDIS_USERNAME;
             const password = process.env.REDIS_PASSWORD;
@@ -52,16 +60,30 @@ class RedisCache {
     async connect() {
         try {
             if (!this.client.isOpen) {
-                await this.client.connect();
+                console.log('🔄 Attempting Redis connection with timeout...');
+                
+                // Set a connection timeout for serverless
+                const connectPromise = this.client.connect();
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Redis connection timeout')), 5000)
+                );
+                
+                await Promise.race([connectPromise, timeoutPromise]);
                 console.log('🔄 Redis cache client connected successfully');
                 
-                // Test the connection
-                await this.client.ping();
+                // Quick ping test with timeout
+                const pingPromise = this.client.ping();
+                const pingTimeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Redis ping timeout')), 2000)
+                );
+                
+                await Promise.race([pingPromise, pingTimeoutPromise]);
                 console.log('🏓 Redis PING successful');
             }
         } catch (error) {
-            console.error('❌ Failed to connect Redis cache client:', error);
-            throw error;
+            console.warn('⚠️ Redis connection failed, falling back to memory cache:', error.message);
+            // Don't throw error - let app continue without Redis
+            return false;
         }
     }
 
