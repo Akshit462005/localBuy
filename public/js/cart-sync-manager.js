@@ -133,21 +133,19 @@ class CartSyncManager {
     mergeCarts(localCart, serverCart) {
         console.log('🔀 Merging carts...');
         
-        // Check if cart was recently cleared by user
+        // Only prevent restoration if server cart is empty AND we have a recent clear flag
+        // This prevents normal cart sync from being blocked
         try {
             const cartClearedAt = localStorage.getItem('cart_cleared_at');
-            if (cartClearedAt && (Date.now() - parseInt(cartClearedAt)) < 600000) { // 10 minutes
-                console.log('🛑 Cart was recently cleared by user, skipping sync');
+            if (cartClearedAt && 
+                (Date.now() - parseInt(cartClearedAt)) < 120000 && // 2 minutes only
+                (!serverCart.items?.length || serverCart.items.length === 0)) {
+                console.log('🛑 Cart was recently cleared and server is empty, respecting clear');
+                // Clear the flag after respecting it once
+                localStorage.removeItem('cart_cleared_at');
                 return { items: [], total: 0, count: 0, lastUpdated: Date.now() };
             }
         } catch(e) {}
-        
-        // If server cart is empty and recent, don't restore from local
-        if (!serverCart.items?.length && serverCart.lastUpdated && 
-            (Date.now() - serverCart.lastUpdated) < 300000) { // 5 minutes
-            console.log('🛑 Server cart recently cleared, skipping local restoration');
-            return serverCart;
-        }
         
         // If one cart is empty, return the other
         if (!localCart.items?.length) return serverCart;

@@ -18,10 +18,10 @@
                 return;
             }
             
-            // Set flag to prevent sync restoration (keep storage intact)
+            // Set flag to prevent sync restoration for full cart clear
             try {
                 localStorage.setItem('cart_cleared_at', Date.now().toString());
-                console.log('🗑️ Set clear flag to prevent sync restoration');
+                console.log('🗑️ Set clear flag for full cart clear');
             } catch(e) { console.log('Clear flag error:', e); }
             
             // Get all cart items and remove them
@@ -65,10 +65,8 @@
                         const cartItem = document.querySelector(`[data-item-id="${itemId}"]`);
                         if (cartItem) cartItem.remove();
                         
-                        // Set flag to prevent sync restoration
-                        try {
-                            localStorage.setItem('cart_cleared_at', Date.now().toString());
-                        } catch(e) {}
+                        // Individual item removal - no clear flag needed
+                        console.log('🗑️ Item removed successfully');
                         
                         // Reload after short delay
                         setTimeout(() => window.location.reload(), 500);
@@ -125,10 +123,8 @@
                 return cartItem ? cartItem.getAttribute('data-item-id') : null;
             }).filter(id => id);
             
-            // Set flag to prevent sync restoration
-            try {
-                localStorage.setItem('cart_cleared_at', Date.now().toString());
-            } catch(e) {}
+            // Bulk item removal - let normal sync handle this
+            console.log('🗑️ Removing selected items');
             
             Promise.all(itemIds.map(itemId => 
                 fetch(`/user/remove-from-cart/${itemId}`, { method: 'DELETE' })
