@@ -208,7 +208,7 @@
                                     </span>
                                 </td>
                                 <td class="sales-cell">
-                                    <span class="sales-count">0</span>
+                                    <span class="sales-count"><%= product.total_sold || 0 %></span>
                                 </td>
                                 <td class="actions-cell">
                                     <div class="action-buttons">
@@ -635,6 +635,11 @@
             
             // Filter functionality
             document.getElementById('productFilter').addEventListener('change', filterProducts);
+            
+            // Order status filter
+            document.getElementById('orderStatusFilter').addEventListener('change', () => {
+                loadOrders(1); // Reset to page 1 when filter changes
+            });
             
             // Checkbox functionality
             document.getElementById('selectAll').addEventListener('change', toggleSelectAll);

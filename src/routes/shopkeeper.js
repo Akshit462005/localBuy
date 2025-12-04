@@ -28,9 +28,17 @@ async function logAdminAction(adminId, action, targetType, targetId, details, po
 // Admin/Shopkeeper dashboard with real statistics
 router.get('/dashboard', auth, isShopkeeper, async (req, res) => {
     try {
-        // Get products for this shopkeeper
-        const productsResult = await pool.query(
-            'SELECT * FROM products WHERE shopkeeper_id = $1 ORDER BY created_at DESC',
+        // Get products for this shopkeeper with sales data
+        const productsResult = await pool.query(`
+            SELECT p.*, 
+                   COALESCE(SUM(oi.quantity), 0) as total_sold,
+                   COALESCE(SUM(oi.price * oi.quantity), 0) as total_revenue
+            FROM products p 
+            LEFT JOIN order_items oi ON p.id = oi.product_id 
+            LEFT JOIN orders o ON oi.order_id = o.id AND o.status NOT IN ('cancelled', 'refunded')
+            WHERE p.shopkeeper_id = $1 
+            GROUP BY p.id
+            ORDER BY p.created_at DESC`,
             [req.user.id]
         );
         
