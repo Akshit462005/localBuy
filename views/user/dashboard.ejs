@@ -146,6 +146,24 @@
                                     <span class="currency">₹</span>
                                     <span class="amount"><%= product.price %></span>
                                 </p>
+                                <div class="stock-info">
+                                    <% if (product.stock_quantity > 10) { %>
+                                        <span class="stock-badge available">
+                                            <i class="fas fa-check-circle"></i>
+                                            In Stock (<%= product.stock_quantity %>)
+                                        </span>
+                                    <% } else if (product.stock_quantity > 0) { %>
+                                        <span class="stock-badge limited">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            Only <%= product.stock_quantity %> left
+                                        </span>
+                                    <% } else { %>
+                                        <span class="stock-badge unavailable">
+                                            <i class="fas fa-times-circle"></i>
+                                            Out of Stock
+                                        </span>
+                                    <% } %>
+                                </div>
                                 <p class="shop-name">
                                     <i class="fas fa-store-alt"></i>
                                     <%= product.shopkeeper_name %>
@@ -153,14 +171,25 @@
                             </div>
                             
                             <div class="product-actions">
-                                <button class="btn primary add-to-cart-btn" onclick="addToCart(<%= product.id %>, this)">
-                                    <i class="fas fa-shopping-cart"></i>
-                                    <span>Add to Cart</span>
-                                </button>
-                                <button class="btn secondary quick-buy-btn" onclick="quickBuy(<%= product.id %>)">
-                                    <i class="fas fa-bolt"></i>
-                                    Quick Buy
-                                </button>
+                                <% if (product.stock_quantity > 0) { %>
+                                    <button class="btn primary add-to-cart-btn" onclick="addToCart(<%= product.id %>, this)">
+                                        <i class="fas fa-shopping-cart"></i>
+                                        <span>Add to Cart</span>
+                                    </button>
+                                    <button class="btn secondary quick-buy-btn" onclick="quickBuy(<%= product.id %>)">
+                                        <i class="fas fa-bolt"></i>
+                                        Quick Buy
+                                    </button>
+                                <% } else { %>
+                                    <button class="btn disabled" disabled>
+                                        <i class="fas fa-ban"></i>
+                                        <span>Out of Stock</span>
+                                    </button>
+                                    <button class="btn secondary" onclick="notifyWhenAvailable(<%= product.id %>)">
+                                        <i class="fas fa-bell"></i>
+                                        Notify Me
+                                    </button>
+                                <% } %>
                             </div>
                         </div>
                     </div>

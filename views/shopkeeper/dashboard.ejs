@@ -203,7 +203,9 @@
                                     <span class="status-badge active">Active</span>
                                 </td>
                                 <td class="stock-cell">
-                                    <span class="stock-count">15</span>
+                                    <span class="stock-count <%= product.stock_quantity === 0 ? 'out-of-stock' : product.stock_quantity < 10 ? 'low-stock' : '' %>">
+                                        <%= product.stock_quantity || 0 %>
+                                    </span>
                                 </td>
                                 <td class="sales-cell">
                                     <span class="sales-count">0</span>

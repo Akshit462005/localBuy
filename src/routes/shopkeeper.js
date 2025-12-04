@@ -241,13 +241,13 @@ router.get('/add-product', auth, isShopkeeper, (req, res) => {
 // Add product handler
 router.post('/add-product', auth, isShopkeeper, async (req, res) => {
     try {
-        const { name, description, price, image_url } = req.body;
+        const { name, description, price, stock_quantity, image_url } = req.body;
         
         // Validate required fields
-        if (!name || !description || !price) {
+        if (!name || !description || !price || stock_quantity === undefined) {
             return res.render('shopkeeper/add-product', { 
-                error: 'Name, description, and price are required',
-                values: { name, description, price, image_url }
+                error: 'Name, description, price, and stock quantity are required',
+                values: { name, description, price, stock_quantity, image_url }
             });
         }
         
@@ -260,7 +260,7 @@ router.post('/add-product', auth, isShopkeeper, async (req, res) => {
             if (!validation.valid) {
                 return res.render('shopkeeper/add-product', { 
                     error: validation.error,
-                    values: { name, description, price, image_url }
+                    values: { name, description, price, stock_quantity, image_url }
                 });
             }
             
@@ -270,8 +270,8 @@ router.post('/add-product', auth, isShopkeeper, async (req, res) => {
         }
 
         await pool.query(
-            'INSERT INTO products (name, description, price, image_url, shopkeeper_id) VALUES ($1, $2, $3, $4, $5)',
-            [name, description, price, processedImageUrl, req.user.id]
+            'INSERT INTO products (name, description, price, stock_quantity, image_url, shopkeeper_id) VALUES ($1, $2, $3, $4, $5, $6)',
+            [name, description, price, parseInt(stock_quantity) || 0, processedImageUrl, req.user.id]
         );
 
         res.redirect('/shopkeeper/dashboard');
@@ -302,7 +302,7 @@ router.get('/edit-product/:id', auth, isShopkeeper, async (req, res) => {
 // Update product
 router.post('/edit-product/:id', auth, isShopkeeper, async (req, res) => {
     try {
-        const { name, description, price, image_url, keep_existing_image } = req.body;
+        const { name, description, price, stock_quantity, image_url, keep_existing_image } = req.body;
         
         let processedImageUrl = req.body.existing_image; // Keep existing by default
         
@@ -323,8 +323,8 @@ router.post('/edit-product/:id', auth, isShopkeeper, async (req, res) => {
         }
 
         await pool.query(
-            'UPDATE products SET name = $1, description = $2, price = $3, image_url = $4 WHERE id = $5 AND shopkeeper_id = $6',
-            [name, description, price, processedImageUrl, req.params.id, req.user.id]
+            'UPDATE products SET name = $1, description = $2, price = $3, stock_quantity = $4, image_url = $5 WHERE id = $6 AND shopkeeper_id = $7',
+            [name, description, price, parseInt(stock_quantity) || 0, processedImageUrl, req.params.id, req.user.id]
         );
 
         res.redirect('/shopkeeper/dashboard');
