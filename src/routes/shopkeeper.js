@@ -2,8 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { auth, isShopkeeper } = require('../middleware/auth');
 const path = require('path');
-const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
+
+// Centralized database connection
+const pool = require('../utils/database');
 
 // Redis cache utility
 const redisCache = require('../utils/redis');
@@ -22,15 +24,6 @@ async function logAdminAction(adminId, action, targetType, targetId, details, po
         console.error('Failed to log admin action:', err);
     }
 }
-
-const pool = new Pool({
-    user: process.env.POSTGRES_USER,
-    password: process.env.POSTGRES_PASSWORD,
-    host: process.env.POSTGRES_HOST,
-    port: parseInt(process.env.POSTGRES_PORT || 5432),
-    database: process.env.POSTGRES_DB,
-    ssl: { rejectUnauthorized: false } // Enable SSL for Aiven
-});
 
 // Admin/Shopkeeper dashboard with real statistics
 router.get('/dashboard', auth, isShopkeeper, async (req, res) => {

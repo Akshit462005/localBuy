@@ -80,16 +80,8 @@ try {
     console.error('Redis setup failed (using memory):', error.message);
 }
 
-// Database connection
-const { Pool } = require('pg');
-const pool = new Pool({
-    user: process.env.POSTGRES_USER,
-    password: process.env.POSTGRES_PASSWORD,
-    host: process.env.POSTGRES_HOST,
-    port: parseInt(process.env.POSTGRES_PORT || 5432),
-    database: process.env.POSTGRES_DB,
-    ssl: { rejectUnauthorized: false } // Enable SSL for Aiven
-});
+// Centralized database connection
+const pool = require('./utils/database');
 
 // Middleware
 app.use(express.json());
@@ -176,15 +168,7 @@ app.use('/user', (req, res, next) => {
     // Only sync for authenticated user requests
     if (req.session?.user && (!req.session.cart || req.session.cart.length === 0)) {
         // Silently sync cart from database if session cart is empty
-        const { Pool } = require('pg');
-        const pool = new Pool({
-            user: process.env.POSTGRES_USER,
-            password: process.env.POSTGRES_PASSWORD,
-            host: process.env.POSTGRES_HOST,
-            port: parseInt(process.env.POSTGRES_PORT || 5432),
-            database: process.env.POSTGRES_DB,
-            ssl: { rejectUnauthorized: false }
-        });
+        // Use the centralized pool (already imported above)
         
         pool.query(`
             SELECT c.quantity, p.id, p.name, p.price, p.image_url, p.description 

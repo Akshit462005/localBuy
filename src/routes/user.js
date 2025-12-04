@@ -1,16 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { auth, isUser } = require('../middleware/auth');
-const { Pool } = require('pg');
 
-const pool = new Pool({
-    user: process.env.POSTGRES_USER,
-    password: process.env.POSTGRES_PASSWORD,
-    host: process.env.POSTGRES_HOST,
-    port: parseInt(process.env.POSTGRES_PORT || 5432),
-    database: process.env.POSTGRES_DB,
-    ssl: { rejectUnauthorized: false } // Enable SSL for Aiven
-});
+// Centralized database connection
+const pool = require('../utils/database');
 
 // User dashboard - Show all products with cache support
 router.get('/dashboard', auth, isUser, async (req, res) => {
