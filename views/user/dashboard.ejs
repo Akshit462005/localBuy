@@ -227,6 +227,9 @@
             setupEventListeners();
             updateCartCount();
             hideLoadingOverlay();
+            
+            // Apply initial filters/sort
+            applyFilters();
         });
 
         function initializeDashboard() {
@@ -324,18 +327,41 @@
                 productGrid.style.display = isGridView ? 'grid' : 'block';
                 noResults.style.display = 'none';
                 
+                // Get all existing cards
+                const allCards = Array.from(document.querySelectorAll('.product-card'));
+                
                 // Hide all cards first
-                const allCards = document.querySelectorAll('.product-card');
                 allCards.forEach(card => card.style.display = 'none');
                 
-                // Show matching cards
-                products.forEach(product => {
-                    const card = document.querySelector(`[data-product*='"id":${product.id}']`);
-                    if (card) {
-                        card.style.display = 'block';
-                        card.style.animation = 'fadeInUp 0.3s ease-out';
+                // Create a map for quick lookups
+                const cardMap = new Map();
+                allCards.forEach(card => {
+                    try {
+                        const cardData = JSON.parse(card.getAttribute('data-product'));
+                        cardMap.set(cardData.id, card);
+                    } catch (e) {
+                        console.warn('Could not parse card data:', card);
                     }
                 });
+                
+                // Reorder and show cards according to the sorted products
+                const fragment = document.createDocumentFragment();
+                products.forEach((product, index) => {
+                    const card = cardMap.get(product.id);
+                    if (card) {
+                        // Update the data-index for proper functionality
+                        card.setAttribute('data-index', index);
+                        card.style.display = 'block';
+                        card.style.animation = 'fadeInUp 0.3s ease-out';
+                        
+                        // Remove from current position and add to fragment
+                        card.remove();
+                        fragment.appendChild(card);
+                    }
+                });
+                
+                // Add all sorted cards back to the grid
+                productGrid.appendChild(fragment);
             }
             
             // Update counts
