@@ -122,7 +122,7 @@
                                 <button class="quick-view-btn" onclick="openQuickView(<%= index %>)">
                                     <i class="fas fa-eye"></i>
                                 </button>
-                                <button class="wishlist-btn" onclick="toggleWishlist(<%= product.id %>)">
+                                <button class="wishlist-btn" data-product-id="<%= product.id %>" onclick="toggleWishlist(<%= product.id %>, this)">
                                     <i class="far fa-heart"></i>
                                 </button>
                             </div>
@@ -279,8 +279,11 @@
             priceRange.value = maxPrice;
             document.getElementById('priceValue').textContent = maxPrice;
             
-            // Initialize wishlist UI
-            updateWishlistUI();
+            // Initialize wishlist UI after DOM is ready
+            setTimeout(() => {
+                updateWishlistUI();
+                console.log('✅ Wishlist UI initialized with', wishlist.length, 'items');
+            }, 100);
         }
 
         function setupEventListeners() {
@@ -399,8 +402,8 @@
                     <div class="product-badges">
                         <span class="badge new">New</span>
                     </div>
-                    <button class="wishlist-btn ${isInWishlist ? 'active' : ''}" onclick="toggleWishlist(${product.id}, this)" title="Add to Wishlist">
-                        <i class="fas fa-heart"></i>
+                    <button class="wishlist-btn ${isInWishlist ? 'active' : ''}" data-product-id="${product.id}" onclick="toggleWishlist(${product.id}, this)" title="Add to Wishlist">
+                        <i class="${isInWishlist ? 'fas' : 'far'} fa-heart"></i>
                     </button>
                 </div>
                 <div class="product-info">
@@ -689,7 +692,11 @@
             });
         }
 
-        function toggleWishlist(productId) {
+        function isProductInWishlist(productId) {
+            return wishlist.includes(productId);
+        }
+
+        function toggleWishlist(productId, buttonElement) {
             const index = wishlist.indexOf(productId);
             if (index > -1) {
                 wishlist.splice(index, 1);
@@ -700,23 +707,50 @@
             }
             
             localStorage.setItem('wishlist', JSON.stringify(wishlist));
-            updateWishlistUI();
+            
+            // Update the specific button immediately if passed
+            if (buttonElement) {
+                updateSingleWishlistButton(buttonElement, productId);
+            } else {
+                updateWishlistUI();
+            }
+        }
+
+        function updateSingleWishlistButton(button, productId) {
+            const icon = button.querySelector('i');
+            
+            if (wishlist.includes(productId)) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                button.classList.add('active');
+            } else {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                button.classList.remove('active');
+            }
         }
 
         function updateWishlistUI() {
             const wishlistBtns = document.querySelectorAll('.wishlist-btn');
-            wishlistBtns.forEach((btn, index) => {
-                const productId = allProducts[index].id;
-                const icon = btn.querySelector('i');
+            wishlistBtns.forEach((btn) => {
+                // Get product ID from the button's onclick attribute or data attribute
+                const onclickAttr = btn.getAttribute('onclick');
+                let productId = null;
                 
-                if (wishlist.includes(productId)) {
-                    icon.classList.remove('far');
-                    icon.classList.add('fas');
-                    btn.classList.add('active');
-                } else {
-                    icon.classList.remove('fas');
-                    icon.classList.add('far');
-                    btn.classList.remove('active');
+                if (onclickAttr) {
+                    const match = onclickAttr.match(/toggleWishlist\(([^,)]+)/);
+                    if (match) {
+                        productId = parseInt(match[1]);
+                    }
+                }
+                
+                // Fallback: check if button has data-product-id
+                if (!productId) {
+                    productId = parseInt(btn.getAttribute('data-product-id'));
+                }
+                
+                if (productId) {
+                    updateSingleWishlistButton(btn, productId);
                 }
             });
         }
