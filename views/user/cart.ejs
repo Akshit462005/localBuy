@@ -165,10 +165,46 @@
                             <span>You saved ₹<%= (total * 0.1).toFixed(2) %> on this order!</span>
                         </div>
                         
-                        <form action="/user/checkout" method="POST" class="checkout-form">
-                            <button type="submit" class="btn primary large checkout-btn">
+                        <form action="/user/checkout" method="POST" class="checkout-form" id="checkoutForm">
+                            <div class="checkout-details">
+                                <h3><i class="fas fa-shipping-fast"></i> Shipping Details</h3>
+                                
+                                <div class="form-group">
+                                    <label for="shippingAddress">Address *</label>
+                                    <textarea id="shippingAddress" name="shippingAddress" required 
+                                              placeholder="Enter your complete address" rows="3"></textarea>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="city">City *</label>
+                                        <input type="text" id="city" name="city" required placeholder="Enter city">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="postalCode">Postal Code *</label>
+                                        <input type="text" id="postalCode" name="postalCode" required 
+                                               placeholder="Enter postal code" pattern="[0-9]{6}">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="phone">Phone Number *</label>
+                                    <input type="tel" id="phone" name="phone" required 
+                                           placeholder="Enter your phone number" pattern="[0-9]{10}">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="paymentMethod">Payment Method</label>
+                                    <select id="paymentMethod" name="paymentMethod">
+                                        <option value="cod">Cash on Delivery (COD)</option>
+                                        <option value="online">Online Payment (Coming Soon)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="btn primary large checkout-btn" id="checkoutBtn">
                                 <i class="fas fa-lock"></i>
-                                Proceed to Checkout
+                                Place Order
                             </button>
                         </form>
                         
@@ -229,6 +265,7 @@
 
     <!-- Session Storage Cache Scripts -->
     <script src="/js/cache.js"></script>
+    <script src="/js/cart-sync-manager.js"></script>
     <script src="/js/cart-manager.js"></script>
     <script src="/js/session-manager.js"></script>
     
@@ -651,6 +688,111 @@
                 }
             }, 4000);
         }
+
+        // Enhanced checkout handling
+        function setupCheckoutForm() {
+            const checkoutForm = document.getElementById('checkoutForm');
+            const checkoutBtn = document.getElementById('checkoutBtn');
+            
+            if (!checkoutForm) return;
+            
+            checkoutForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                try {
+                    // Validate form
+                    if (!validateCheckoutForm()) {
+                        return;
+                    }
+                    
+                    // Disable form during processing
+                    checkoutBtn.disabled = true;
+                    checkoutBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing Order...';
+                    checkoutBtn.classList.add('processing');
+                    
+                    // Get form data
+                    const formData = new FormData(checkoutForm);
+                    
+                    // Submit checkout
+                    const response = await fetch('/user/checkout', {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: new URLSearchParams(formData)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // Clear cart via sync manager
+                        if (window.cartSyncManager) {
+                            await window.cartSyncManager.clearCart();
+                        }
+                        
+                        showToast('Order placed successfully!', 'success');
+                        
+                        // Redirect after delay
+                        setTimeout(() => {
+                            window.location.href = result.redirectUrl || '/user/orders';
+                        }, 1500);
+                    } else {
+                        throw new Error(result.error || 'Checkout failed');
+                    }
+                    
+                } catch (error) {
+                    console.error('Checkout error:', error);
+                    showToast('Checkout failed: ' + error.message, 'error');
+                    
+                    // Re-enable form
+                    checkoutBtn.disabled = false;
+                    checkoutBtn.innerHTML = '<i class="fas fa-lock"></i> Place Order';
+                    checkoutBtn.classList.remove('processing');
+                }
+            });
+        }
+        
+        function validateCheckoutForm() {
+            const requiredFields = ['shippingAddress', 'city', 'postalCode', 'phone'];
+            let isValid = true;
+            
+            requiredFields.forEach(fieldName => {
+                const field = document.getElementById(fieldName);
+                const value = field.value.trim();
+                
+                if (!value) {
+                    field.style.borderColor = var(--danger-color);
+                    isValid = false;
+                    showToast(`Please fill in ${fieldName.replace(/([A-Z])/g, ' $1').toLowerCase()}`, 'warning');
+                } else {
+                    field.style.borderColor = '#e0e0e0';
+                }
+            });
+            
+            // Validate postal code format
+            const postalCode = document.getElementById('postalCode').value.trim();
+            if (postalCode && !/^\d{6}$/.test(postalCode)) {
+                document.getElementById('postalCode').style.borderColor = var(--danger-color);
+                showToast('Please enter a valid 6-digit postal code', 'warning');
+                isValid = false;
+            }
+            
+            // Validate phone number format
+            const phone = document.getElementById('phone').value.trim();
+            if (phone && !/^\d{10}$/.test(phone)) {
+                document.getElementById('phone').style.borderColor = var(--danger-color);
+                showToast('Please enter a valid 10-digit phone number', 'warning');
+                isValid = false;
+            }
+            
+            return isValid;
+        }
+
+        // Initialize checkout form when document is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            setupCheckoutForm();
+        });
     </script>
     <script src="/js/cart-counter.js"></script>
 </body>

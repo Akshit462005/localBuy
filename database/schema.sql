@@ -57,12 +57,49 @@ CREATE TABLE IF NOT EXISTS order_items (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create order_tracking table
+CREATE TABLE IF NOT EXISTS order_tracking (
+    id SERIAL PRIMARY KEY,
+    order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+    status VARCHAR(100) NOT NULL,
+    location VARCHAR(255),
+    description TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create reviews table
+CREATE TABLE IF NOT EXISTS reviews (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+    order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, product_id, order_id)
+);
+
+-- Create order_status_history table
+CREATE TABLE IF NOT EXISTS order_status_history (
+    id SERIAL PRIMARY KEY,
+    order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+    old_status VARCHAR(50),
+    new_status VARCHAR(50) NOT NULL,
+    changed_by INTEGER REFERENCES users(id),
+    reason TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_products_shopkeeper ON products(shopkeeper_id);
 CREATE INDEX IF NOT EXISTS idx_cart_user ON cart(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_tracking_order ON order_tracking(order_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_user ON reviews(user_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_product ON reviews(product_id);
+CREATE INDEX IF NOT EXISTS idx_order_status_history_order ON order_status_history(order_id);
 
 -- Insert some sample data for testing
 INSERT INTO users (username, email, password, role) VALUES

@@ -394,56 +394,113 @@
             const modal = document.getElementById('trackingModal');
             const content = document.getElementById('trackingContent');
             
+            // Show loading state
             content.innerHTML = `
                 <div class="tracking-info">
                     <h2><i class="fas fa-map-marker-alt"></i> Track Order #${orderId}</h2>
-                    <div class="tracking-timeline">
-                        <div class="timeline-item completed">
-                            <div class="timeline-icon">
-                                <i class="fas fa-check"></i>
-                            </div>
-                            <div class="timeline-content">
-                                <h4>Order Placed</h4>
-                                <p>Your order has been placed successfully</p>
-                                <span class="timeline-date">Nov 15, 2025 - 10:30 AM</span>
-                            </div>
-                        </div>
-                        <div class="timeline-item current">
-                            <div class="timeline-icon">
-                                <i class="fas fa-cog fa-spin"></i>
-                            </div>
-                            <div class="timeline-content">
-                                <h4>Processing</h4>
-                                <p>Your order is being prepared for shipment</p>
-                                <span class="timeline-date">Estimated: Nov 16, 2025</span>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-icon">
-                                <i class="fas fa-truck"></i>
-                            </div>
-                            <div class="timeline-content">
-                                <h4>Shipped</h4>
-                                <p>Your order has been shipped</p>
-                                <span class="timeline-date">Estimated: Nov 17, 2025</span>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-icon">
-                                <i class="fas fa-home"></i>
-                            </div>
-                            <div class="timeline-content">
-                                <h4>Delivered</h4>
-                                <p>Your order will be delivered</p>
-                                <span class="timeline-date">Estimated: Nov 18, 2025</span>
-                            </div>
-                        </div>
+                    <div class="loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading tracking information...</p>
                     </div>
                 </div>
             `;
             
             modal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
+            
+            // Fetch real tracking data
+            fetch(`/user/orders/${orderId}/track`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const trackingData = data.tracking || [];
+                    const historyData = data.history || [];
+                    
+                    content.innerHTML = `
+                        <div class="tracking-info">
+                            <h2><i class="fas fa-map-marker-alt"></i> Track Order #${orderId}</h2>
+                            <div class="tracking-timeline">
+                                ${historyData.length > 0 ? 
+                                    historyData.map((item, index) => `
+                                        <div class="timeline-item ${index === historyData.length - 1 ? 'current' : 'completed'}">
+                                            <div class="timeline-icon">
+                                                <i class="${getStatusIcon(item.new_status)}"></i>
+                                            </div>
+                                            <div class="timeline-content">
+                                                <h4>${item.new_status.charAt(0).toUpperCase() + item.new_status.slice(1)}</h4>
+                                                <p>${item.reason || `Order status changed to ${item.new_status}`}</p>
+                                                <span class="timeline-date">${new Date(item.created_at).toLocaleDateString('en-US', { 
+                                                    year: 'numeric', 
+                                                    month: 'long', 
+                                                    day: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                })}</span>
+                                            </div>
+                                        </div>
+                                    `).join('') :
+                                    `<div class="timeline-item current">
+                                        <div class="timeline-icon">
+                                            <i class="fas fa-clock"></i>
+                                        </div>
+                                        <div class="timeline-content">
+                                            <h4>Order Placed</h4>
+                                            <p>Your order has been placed successfully</p>
+                                            <span class="timeline-date">Tracking information will be updated soon</span>
+                                        </div>
+                                    </div>`
+                                }
+                                ${trackingData.length > 0 ? `
+                                    <div class="tracking-updates">
+                                        <h3>Tracking Updates</h3>
+                                        ${trackingData.map(update => `
+                                            <div class="tracking-update">
+                                                <div class="update-status">${update.status}</div>
+                                                <div class="update-location">${update.location || 'Processing Center'}</div>
+                                                <div class="update-description">${update.description}</div>
+                                                <div class="update-time">${new Date(update.timestamp).toLocaleString()}</div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    content.innerHTML = `
+                        <div class="tracking-info">
+                            <h2><i class="fas fa-map-marker-alt"></i> Track Order #${orderId}</h2>
+                            <div class="error">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <p>Unable to load tracking information</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching tracking data:', error);
+                content.innerHTML = `
+                    <div class="tracking-info">
+                        <h2><i class="fas fa-map-marker-alt"></i> Track Order #${orderId}</h2>
+                        <div class="error">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <p>Error loading tracking information</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        function getStatusIcon(status) {
+            const icons = {
+                'pending': 'fas fa-clock',
+                'processing': 'fas fa-cog',
+                'shipped': 'fas fa-truck',
+                'delivered': 'fas fa-check-circle',
+                'cancelled': 'fas fa-times-circle'
+            };
+            return icons[status] || 'fas fa-info-circle';
         }
 
         function closeTrackingModal() {
@@ -454,38 +511,228 @@
         function reorder(orderId) {
             showToast('Adding items to cart...', 'info');
             
-            // Mock reorder functionality
-            setTimeout(() => {
-                showToast('Items added to cart successfully!', 'success');
-            }, 1500);
+            // Get all items from the order
+            const orderItems = [];
+            <% orders.forEach(order => { %>
+                <% if (order.items && order.items.length > 0) { %>
+                    if (orderId === '<%= order.id %>') {
+                        <% order.items.forEach(item => { %>
+                            orderItems.push({
+                                id: '<%= item.id %>',
+                                name: '<%= item.name %>',
+                                price: '<%= item.price %>',
+                                quantity: <%= item.quantity %>,
+                                image_url: '<%= item.image_url || "" %>',
+                                description: '<%= item.description || "" %>'
+                            });
+                        <% }) %>
+                    }
+                <% } %>
+            <% }) %>
+            
+            if (orderItems.length === 0) {
+                showToast('No items found in this order', 'error');
+                return;
+            }
+            
+            console.log('🔄 Reordering items:', orderItems);
+            
+            // Add items sequentially to avoid overwhelming the server
+            let currentItemIndex = 0;
+            let totalRequests = 0;
+            let successfulRequests = 0;
+            let failedRequests = 0;
+            
+            // Calculate total requests needed
+            orderItems.forEach(item => {
+                totalRequests += item.quantity;
+            });
+            
+            function addNextItem() {
+                if (currentItemIndex >= orderItems.length) {
+                    // All items processed
+                    if (failedRequests === 0) {
+                        showToast(`Successfully added all ${orderItems.length} product(s) to cart!`, 'success');
+                    } else if (successfulRequests > 0) {
+                        showToast(`Added ${successfulRequests} item(s), ${failedRequests} failed`, 'warning');
+                    } else {
+                        showToast('Failed to add items to cart', 'error');
+                    }
+                    return;
+                }
+                
+                const item = orderItems[currentItemIndex];
+                let quantityAdded = 0;
+                
+                function addSingleQuantity() {
+                    if (quantityAdded >= item.quantity) {
+                        currentItemIndex++;
+                        addNextItem();
+                        return;
+                    }
+                    
+                    fetch('/user/add-to-cart', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `productId=${item.id}`
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            successfulRequests++;
+                            console.log(`✅ Added ${item.name} (${quantityAdded + 1}/${item.quantity})`);
+                        } else {
+                            failedRequests++;
+                            console.error(`❌ Failed to add ${item.name}:`, response.status);
+                        }
+                        quantityAdded++;
+                        
+                        // Add next quantity of same item with small delay
+                        setTimeout(addSingleQuantity, 100);
+                    })
+                    .catch(error => {
+                        console.error('Error adding item to cart:', error);
+                        failedRequests++;
+                        quantityAdded++;
+                        setTimeout(addSingleQuantity, 100);
+                    });
+                }
+                
+                addSingleQuantity();
+            }
+            
+            addNextItem();
         }
 
         function cancelOrder(orderId) {
-            if (confirm('Are you sure you want to cancel this order?')) {
-                showToast('Order cancellation requested', 'info');
-                
-                // Update status badge
-                const orderCard = document.querySelector(`[data-order-id="${orderId}"]`);
-                const statusBadge = orderCard.querySelector('.status-badge');
-                statusBadge.className = 'status-badge status-cancelled';
-                statusBadge.innerHTML = '<i class="fas fa-times-circle"></i> CANCELLED';
-                
-                // Hide cancel button
-                const cancelBtn = orderCard.querySelector('.action-btn.cancel');
-                if (cancelBtn) cancelBtn.style.display = 'none';
+            const reason = prompt('Please provide a reason for cancellation (optional):');
+            if (reason !== null) { // User didn't click cancel
+                if (confirm('Are you sure you want to cancel this order?')) {
+                    showToast('Cancelling order...', 'info');
+                    
+                    fetch(`/user/orders/${orderId}/cancel`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ reason: reason || 'Cancelled by customer' })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showToast('Order cancelled successfully', 'success');
+                            
+                            // Update status badge
+                            const orderCard = document.querySelector(`[data-order-id="${orderId}"]`);
+                            const statusBadge = orderCard.querySelector('.status-badge');
+                            statusBadge.className = 'status-badge status-cancelled';
+                            statusBadge.innerHTML = '<i class="fas fa-times-circle"></i> CANCELLED';
+                            
+                            // Hide cancel button
+                            const cancelBtn = orderCard.querySelector('.action-btn.cancel');
+                            if (cancelBtn) cancelBtn.style.display = 'none';
+                            
+                            // Update progress bar
+                            const progressSteps = orderCard.querySelectorAll('.progress-step');
+                            progressSteps.forEach(step => {
+                                step.classList.remove('active', 'current');
+                            });
+                            
+                        } else {
+                            showToast(data.error || 'Failed to cancel order', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error cancelling order:', error);
+                        showToast('Error cancelling order', 'error');
+                    });
+                }
             }
         }
 
         function buyAgain(itemId) {
             showToast('Adding item to cart...', 'info');
             
-            setTimeout(() => {
-                showToast('Item added to cart!', 'success');
-            }, 1000);
+            console.log('🛒 Adding individual item to cart:', itemId);
+            
+            fetch('/user/add-to-cart', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `productId=${itemId}`
+            })
+            .then(response => {
+                if (response.ok) {
+                    showToast('Item added to cart successfully!', 'success');
+                    console.log('✅ Individual item added to cart');
+                } else {
+                    throw new Error(`HTTP ${response.status}: Failed to add item`);
+                }
+            })
+            .catch(error => {
+                console.error('Error adding item to cart:', error);
+                showToast('Failed to add item to cart', 'error');
+            });
         }
 
         function writeReview(itemId) {
-            showToast('Review feature coming soon!', 'info');
+            // Find the order ID for this item
+            let orderId = null;
+            <% orders.forEach(order => { %>
+                <% if (order.items && order.items.length > 0) { %>
+                    <% order.items.forEach(item => { %>
+                        if (itemId === '<%= item.id %>') {
+                            orderId = '<%= order.id %>';
+                        }
+                    <% }) %>
+                <% } %>
+            <% }) %>
+            
+            if (!orderId) {
+                showToast('Unable to determine order for this item', 'error');
+                return;
+            }
+            
+            const rating = prompt('Rate this product (1-5 stars):');
+            if (rating && rating >= 1 && rating <= 5) {
+                const comment = prompt('Write a review (optional):') || '';
+                
+                showToast('Submitting review...', 'info');
+                
+                fetch(`/user/orders/${orderId}/review`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        productId: itemId,
+                        rating: parseInt(rating),
+                        comment: comment
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('Review submitted successfully!', 'success');
+                        // Optionally disable the review button for this item
+                        const reviewBtn = event.target.closest('.item-actions').querySelector('.btn.outline');
+                        if (reviewBtn) {
+                            reviewBtn.disabled = true;
+                            reviewBtn.innerHTML = '<i class="fas fa-check"></i> Reviewed';
+                        }
+                    } else {
+                        showToast(data.error || 'Failed to submit review', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error submitting review:', error);
+                    showToast('Error submitting review', 'error');
+                });
+            } else if (rating !== null) {
+                showToast('Please enter a rating between 1 and 5', 'error');
+            }
         }
 
         function showToast(message, type = 'info') {
@@ -529,5 +776,6 @@
             };
         }
     </script>
+    <script src="/js/order-status-manager.js"></script>
 </body>
 </html>

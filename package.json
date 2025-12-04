@@ -16,6 +16,7 @@
     "test:browser:debug": "cross-env HEADLESS=false DEVTOOLS=true node browser-test.js"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",
     "connect-redis": "^6.1.3",
     "cookie-parser": "^1.4.7",
