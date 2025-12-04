@@ -136,6 +136,52 @@
             });
         };
         
+        // Update order summary totals
+        window.updateOrderSummary = function() {
+            console.log('📊 Updating order summary...');
+            
+            let itemsTotal = 0;
+            let totalItemCount = 0;
+            
+            // Calculate totals from all cart items
+            document.querySelectorAll('.enhanced-cart-item').forEach(item => {
+                const price = parseFloat(item.getAttribute('data-price')) || 0;
+                const quantityInput = item.querySelector('input[type="number"]');
+                const quantity = parseInt(quantityInput?.value) || 0;
+                
+                const itemSubtotal = price * quantity;
+                itemsTotal += itemSubtotal;
+                totalItemCount += quantity;
+            });
+            
+            // Calculate tax and grand total
+            const taxRate = 0.18; // 18% GST
+            const taxAmount = itemsTotal * taxRate;
+            const grandTotal = itemsTotal + taxAmount;
+            const savings = itemsTotal * 0.1; // 10% savings display
+            
+            // Update all summary elements
+            const itemsTotalElement = document.getElementById('itemsTotal');
+            const taxAmountElement = document.getElementById('taxAmount');
+            const grandTotalElement = document.getElementById('grandTotal');
+            const itemCountElement = document.getElementById('itemCount');
+            const summaryItemCountElement = document.getElementById('summaryItemCount');
+            
+            if (itemsTotalElement) itemsTotalElement.textContent = `₹${itemsTotal.toFixed(2)}`;
+            if (taxAmountElement) taxAmountElement.textContent = `₹${taxAmount.toFixed(2)}`;
+            if (grandTotalElement) grandTotalElement.textContent = `₹${grandTotal.toFixed(2)}`;
+            if (itemCountElement) itemCountElement.textContent = totalItemCount;
+            if (summaryItemCountElement) summaryItemCountElement.textContent = totalItemCount;
+            
+            // Update savings display
+            const savingsElement = document.querySelector('.savings-info span');
+            if (savingsElement) {
+                savingsElement.textContent = `You saved ₹${savings.toFixed(2)} on this order!`;
+            }
+            
+            console.log('✅ Order summary updated:', { itemsTotal, taxAmount, grandTotal, totalItemCount });
+        };
+        
         // Update quantity
         window.updateQuantity = function(itemId, action, value) {
             console.log('📊 updateQuantity called:', itemId, action, value);
@@ -160,27 +206,48 @@
             if (newQuantity !== currentQuantity) {
                 quantityInput.value = newQuantity;
                 
+                // Update subtotal display immediately
+                const cartItem = document.querySelector(`[data-item-id="${itemId}"]`);
+                const price = parseFloat(cartItem.getAttribute('data-price'));
+                const subtotal = (price * newQuantity).toFixed(2);
+                const subtotalElement = document.getElementById(`subtotal-${itemId}`);
+                if (subtotalElement) {
+                    subtotalElement.textContent = `₹${subtotal}`;
+                }
+                
+                // Update order summary totals immediately
+                window.updateOrderSummary();
+                
                 // Update server
                 fetch('/user/update-cart', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: `productId=${itemId}&quantity=${newQuantity}`
                 }).then(response => {
-                    if (response.ok) {
-                        // Update subtotal display
-                        const cartItem = document.querySelector(`[data-item-id="${itemId}"]`);
-                        const price = parseFloat(cartItem.getAttribute('data-price'));
-                        const subtotal = (price * newQuantity).toFixed(2);
-                        const subtotalElement = document.getElementById(`subtotal-${itemId}`);
-                        if (subtotalElement) {
-                            subtotalElement.textContent = `₹${subtotal}`;
-                        }
+                    if (!response.ok) {
+                        console.error('Failed to update server, reverting changes');
+                        // Revert on server error
+                        quantityInput.value = currentQuantity;
+                        window.updateOrderSummary();
                     }
-                }).catch(err => console.error('Update quantity error:', err));
+                }).catch(err => {
+                    console.error('Update quantity error:', err);
+                    // Revert on error
+                    quantityInput.value = currentQuantity;
+                    window.updateOrderSummary();
+                });
             }
         };
         
         console.log('✅ Comprehensive cart functions defined in HEAD and available globally');
+        
+        // Initialize order summary when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof window.updateOrderSummary === 'function') {
+                window.updateOrderSummary();
+                console.log('📊 Initial order summary calculated');
+            }
+        });
     </script>
 </head>
 <body>
