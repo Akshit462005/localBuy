@@ -408,7 +408,7 @@ router.get('/admin/users', auth, isShopkeeper, async (req, res) => {
         let paramIndex = 1;
 
         if (search) {
-            whereClause += ` AND (name ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`;
+            whereClause += ` AND (username ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`;
             params.push(`%${search}%`);
             paramIndex++;
         }
@@ -422,7 +422,7 @@ router.get('/admin/users', auth, isShopkeeper, async (req, res) => {
         }
 
         const usersResult = await pool.query(`
-            SELECT id, name, email, created_at, is_banned, banned_at, ban_reason,
+            SELECT id, username as name, email, created_at, is_banned, banned_at, ban_reason,
                    (SELECT COUNT(*) FROM orders WHERE user_id = users.id) as order_count,
                    (SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE user_id = users.id AND status != 'cancelled') as total_spent
             FROM users 
@@ -927,11 +927,11 @@ router.get('/admin/reports/users', auth, isShopkeeper, async (req, res) => {
 
         const userGrowth = await pool.query(`
             SELECT 
-                DATE_TRUNC('month', created_at) as month,
+                DATE_TRUNC('month', u.created_at) as month,
                 COUNT(*) as new_users
-            FROM users 
-            WHERE role = 'user' AND created_at >= CURRENT_DATE - INTERVAL '12 months'
-            GROUP BY DATE_TRUNC('month', created_at)
+            FROM users u
+            WHERE u.role = 'user' AND u.created_at >= CURRENT_DATE - INTERVAL '12 months'
+            GROUP BY DATE_TRUNC('month', u.created_at)
             ORDER BY month
         `);
 

@@ -1620,9 +1620,18 @@
             }
         }
         
+        // Chart instance variables
+        let salesChart = null;
+        let userGrowthChart = null;
+
         function renderSalesChart(salesData) {
+            // Destroy existing chart if it exists
+            if (salesChart) {
+                salesChart.destroy();
+            }
+            
             const ctx = document.getElementById('salesReportChart').getContext('2d');
-            new Chart(ctx, {
+            salesChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: salesData.map(item => new Date(item.date).toLocaleDateString()),
@@ -1664,8 +1673,13 @@
         }
         
         function renderUserGrowthChart(userGrowth) {
+            // Destroy existing chart if it exists
+            if (userGrowthChart) {
+                userGrowthChart.destroy();
+            }
+            
             const ctx = document.getElementById('userGrowthChart').getContext('2d');
-            new Chart(ctx, {
+            userGrowthChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: userGrowth.map(item => new Date(item.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })),
