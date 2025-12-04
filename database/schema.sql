@@ -94,6 +94,17 @@ CREATE TABLE IF NOT EXISTS order_status_history (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create admin_logs table for tracking admin actions
+CREATE TABLE IF NOT EXISTS admin_logs (
+    id SERIAL PRIMARY KEY,
+    admin_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    action VARCHAR(100) NOT NULL,
+    target_type VARCHAR(50),
+    target_id INTEGER,
+    details TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_products_shopkeeper ON products(shopkeeper_id);
@@ -104,6 +115,8 @@ CREATE INDEX IF NOT EXISTS idx_order_tracking_order ON order_tracking(order_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_user ON reviews(user_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_product ON reviews(product_id);
 CREATE INDEX IF NOT EXISTS idx_order_status_history_order ON order_status_history(order_id);
+CREATE INDEX IF NOT EXISTS idx_admin_logs_admin ON admin_logs(admin_id);
+CREATE INDEX IF NOT EXISTS idx_admin_logs_action ON admin_logs(action);
 
 -- Insert some sample data for testing
 INSERT INTO users (username, email, password, role) VALUES
