@@ -814,7 +814,13 @@
             } else {
                 // Fallback implementation
                 fetch('/user/cart?format=json')
-                    .then(response => response.json())
+                    .then(response => {
+                        if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
+                            return response.json();
+                        } else {
+                            throw new Error('Non-JSON response received');
+                        }
+                    })
                     .then(data => {
                         if (data.success) {
                             const cartCount = data.cart.count || 0;
@@ -831,6 +837,13 @@
                     .catch(error => {
                         console.error('Failed to update cart count:', error);
                         document.getElementById('cartCount').textContent = '0';
+                        
+                        // Update cart badges to show 0
+                        const cartBadges = document.querySelectorAll('.cart-badge, .cart-count');
+                        cartBadges.forEach(badge => {
+                            badge.textContent = '0';
+                            badge.style.display = 'none';
+                        });
                     });
             }
         }

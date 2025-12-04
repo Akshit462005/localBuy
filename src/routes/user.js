@@ -41,7 +41,7 @@ router.post('/add-to-cart', auth, isUser, async (req, res) => {
         const result = await pool.query(`
             SELECT p.*, u.username as shopkeeper_name 
             FROM products p 
-            LEFT JOIN users u ON p.user_id = u.id 
+            LEFT JOIN users u ON p.shopkeeper_id = u.id 
             WHERE p.id = $1
         `, [productId]);
         const product = result.rows[0];
@@ -210,7 +210,7 @@ router.get('/cart', auth, isUser, async (req, res) => {
                        u.username as shopkeeper_name
                 FROM cart c 
                 JOIN products p ON c.product_id = p.id 
-                LEFT JOIN users u ON p.user_id = u.id
+                LEFT JOIN users u ON p.shopkeeper_id = u.id
                 WHERE c.user_id = $1
             `, [req.user.id]);
             
@@ -929,7 +929,7 @@ router.get('/api/cart', auth, isUser, async (req, res) => {
                 SELECT c.quantity, c.product_id, p.id, p.name, p.price, p.image_url, p.description, u.username as shopkeeper_name
                 FROM cart c 
                 JOIN products p ON c.product_id = p.id 
-                LEFT JOIN users u ON p.user_id = u.id
+                LEFT JOIN users u ON p.shopkeeper_id = u.id
                 WHERE c.user_id = $1
             `, [req.user.id]);
             
@@ -1010,6 +1010,25 @@ router.post('/api/cart/sync', auth, isUser, async (req, res) => {
     } catch (error) {
         console.error('Error syncing cart:', error);
         res.status(500).json({ success: false, error: 'Failed to sync cart' });
+    }
+});
+
+// Public cart count endpoint (works without auth for session-based cart)
+router.get('/api/cart/count', (req, res) => {
+    try {
+        const sessionCart = req.session?.cart || [];
+        const count = sessionCart.reduce((sum, item) => sum + (item.quantity || 0), 0);
+        
+        res.json({ 
+            success: true, 
+            count: count 
+        });
+    } catch (error) {
+        console.error('Error getting cart count:', error);
+        res.json({ 
+            success: true, 
+            count: 0 
+        });
     }
 });
 

@@ -27,14 +27,32 @@ class CartCounter {
      */
     async updateCartCount() {
         try {
-            const response = await fetch('/user/cart?format=json');
+            // Try the public cart count endpoint first
+            const response = await fetch('/user/api/cart/count');
             if (response.ok) {
                 const data = await response.json();
                 if (data.success) {
-                    const cartCount = data.cart.count || 0;
-                    this.updateCartElements(cartCount);
+                    this.updateCartElements(data.count || 0);
+                    return;
                 }
             }
+            
+            // Fallback to full cart endpoint if count endpoint fails
+            const cartResponse = await fetch('/user/cart?format=json');
+            if (cartResponse.ok) {
+                const contentType = cartResponse.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const cartData = await cartResponse.json();
+                    if (cartData.success) {
+                        const cartCount = cartData.cart.count || 0;
+                        this.updateCartElements(cartCount);
+                        return;
+                    }
+                }
+            }
+            
+            // If all else fails, fallback to 0
+            this.updateCartElements(0);
         } catch (error) {
             console.error('Failed to update cart count:', error);
             // Fallback to 0 on error
