@@ -4,18 +4,17 @@ class RedisCache {
     constructor() {
         console.log('🔧 Initializing Redis Cache Client for serverless...');
         
-        // Optimized Redis configuration for serverless/Vercel
+        // Simplified Redis configuration for serverless
         const redisUrl = process.env.REDIS_URL;
         if (redisUrl) {
-            console.log('📡 Using REDIS_URL for connection');
+            console.log('📡 Using REDIS_URL with minimal config');
             this.client = createClient({ 
                 url: redisUrl,
                 socket: {
-                    reconnectStrategy: (retries) => retries < 3 ? Math.min(retries * 50, 500) : false,
-                    connectTimeout: 3000,
+                    reconnectStrategy: false, // Disable reconnection
+                    connectTimeout: 2000,
                     lazyConnect: true
-                },
-                database: 0
+                }
             });
         } else {
             const username = process.env.REDIS_USERNAME;

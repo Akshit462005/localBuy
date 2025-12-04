@@ -9,26 +9,77 @@
     
     <!-- Define cart functions immediately in HEAD to ensure they're available -->
     <script>
-        console.log('🚀 Defining cart functions in HEAD...');
+        console.log('🚀 Defining comprehensive cart functions in HEAD...');
         
+        // Clear entire cart
         window.clearCart = function() {
-            console.log('🧹 clearCart called from HEAD definition');
-            if (confirm('Are you sure you want to clear your entire cart?')) {
+            console.log('🧹 clearCart called - comprehensive version');
+            if (!confirm('Are you sure you want to clear your entire cart? This action cannot be undone.')) {
+                return;
+            }
+            
+            // Clear all storage first to prevent restoration
+            try {
+                localStorage.removeItem('localBuy_cart');
+                localStorage.removeItem('cart_data');
+                sessionStorage.removeItem('cart_data');
+                console.log('🗑️ Cleared all local storage');
+            } catch(e) { console.log('Storage clear error:', e); }
+            
+            // Get all cart items and remove them
+            const cartItems = document.querySelectorAll('.enhanced-cart-item');
+            const itemIds = Array.from(cartItems).map(item => item.getAttribute('data-item-id')).filter(id => id);
+            
+            if (itemIds.length === 0) {
                 window.location.reload();
+                return;
             }
-        };
-        
-        window.removeItem = function(itemId) {
-            console.log('🗑️ removeItem called from HEAD definition for item:', itemId);
-            if (confirm('Are you sure you want to remove this item?')) {
+            
+            // Remove all items from server
+            Promise.all(itemIds.map(itemId => 
                 fetch(`/user/remove-from-cart/${itemId}`, { method: 'DELETE' })
-                    .then(() => window.location.reload())
-                    .catch(err => console.error('Error:', err));
-            }
+            )).then(() => {
+                window.location.reload();
+            }).catch(err => {
+                console.error('Clear cart error:', err);
+                window.location.reload();
+            });
         };
         
+        // Remove single item
+        window.removeItem = function(itemId) {
+            console.log('🗑️ removeItem called for item:', itemId);
+            if (!confirm('Are you sure you want to remove this item?')) {
+                return;
+            }
+            
+            fetch(`/user/remove-from-cart/${itemId}`, { method: 'DELETE' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remove from DOM immediately
+                        const cartItem = document.querySelector(`[data-item-id="${itemId}"]`);
+                        if (cartItem) cartItem.remove();
+                        
+                        // Clear cache to prevent restoration
+                        try {
+                            localStorage.removeItem('localBuy_cart');
+                            sessionStorage.removeItem('cart_data');
+                        } catch(e) {}
+                        
+                        // Reload after short delay
+                        setTimeout(() => window.location.reload(), 500);
+                    }
+                })
+                .catch(err => {
+                    console.error('Remove error:', err);
+                    window.location.reload();
+                });
+        };
+        
+        // Toggle select all checkboxes
         window.toggleSelectAll = function() {
-            console.log('📋 toggleSelectAll called from HEAD definition');
+            console.log('📋 toggleSelectAll called');
             const selectAll = document.getElementById('selectAll');
             const checkboxes = document.querySelectorAll('.item-checkbox');
             if (selectAll && checkboxes) {
@@ -37,17 +88,101 @@
             }
         };
         
+        // Update selection display
         window.updateSelection = function() {
-            console.log('✅ updateSelection called from HEAD definition');
+            console.log('✅ updateSelection called');
             const checkboxes = document.querySelectorAll('.item-checkbox');
             const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
             const removeButton = document.getElementById('removeSelected');
             if (removeButton) {
-                removeButton.style.display = selectedCount > 0 ? 'inline-block' : 'none';
+                if (selectedCount > 0) {
+                    removeButton.style.display = 'inline-block';
+                    removeButton.innerHTML = `<i class="fas fa-trash"></i> Remove Selected (${selectedCount})`;
+                } else {
+                    removeButton.style.display = 'none';
+                }
             }
         };
         
-        console.log('✅ Cart functions defined in HEAD and available globally');
+        // Remove selected items
+        window.removeSelected = function() {
+            console.log('🗑️ removeSelected called');
+            const selectedCheckboxes = Array.from(document.querySelectorAll('.item-checkbox:checked'));
+            if (selectedCheckboxes.length === 0) {
+                alert('No items selected');
+                return;
+            }
+            
+            if (!confirm(`Remove ${selectedCheckboxes.length} selected items?`)) {
+                return;
+            }
+            
+            const itemIds = selectedCheckboxes.map(cb => {
+                const cartItem = cb.closest('.enhanced-cart-item');
+                return cartItem ? cartItem.getAttribute('data-item-id') : null;
+            }).filter(id => id);
+            
+            // Clear cache first
+            try {
+                localStorage.removeItem('localBuy_cart');
+                sessionStorage.removeItem('cart_data');
+            } catch(e) {}
+            
+            Promise.all(itemIds.map(itemId => 
+                fetch(`/user/remove-from-cart/${itemId}`, { method: 'DELETE' })
+            )).then(() => {
+                window.location.reload();
+            }).catch(err => {
+                console.error('Remove selected error:', err);
+                window.location.reload();
+            });
+        };
+        
+        // Update quantity
+        window.updateQuantity = function(itemId, action, value) {
+            console.log('📊 updateQuantity called:', itemId, action, value);
+            const quantityInput = document.getElementById(`quantity-${itemId}`);
+            if (!quantityInput) return;
+            
+            let currentQuantity = parseInt(quantityInput.value) || 1;
+            let newQuantity = currentQuantity;
+            
+            switch(action) {
+                case 'increase':
+                    newQuantity = Math.min(currentQuantity + 1, 99);
+                    break;
+                case 'decrease':
+                    newQuantity = Math.max(currentQuantity - 1, 1);
+                    break;
+                case 'set':
+                    newQuantity = Math.max(1, Math.min(parseInt(value) || 1, 99));
+                    break;
+            }
+            
+            if (newQuantity !== currentQuantity) {
+                quantityInput.value = newQuantity;
+                
+                // Update server
+                fetch('/user/update-cart', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `productId=${itemId}&quantity=${newQuantity}`
+                }).then(response => {
+                    if (response.ok) {
+                        // Update subtotal display
+                        const cartItem = document.querySelector(`[data-item-id="${itemId}"]`);
+                        const price = parseFloat(cartItem.getAttribute('data-price'));
+                        const subtotal = (price * newQuantity).toFixed(2);
+                        const subtotalElement = document.getElementById(`subtotal-${itemId}`);
+                        if (subtotalElement) {
+                            subtotalElement.textContent = `₹${subtotal}`;
+                        }
+                    }
+                }).catch(err => console.error('Update quantity error:', err));
+            }
+        };
+        
+        console.log('✅ Comprehensive cart functions defined in HEAD and available globally');
     </script>
 </head>
 <body>
@@ -308,17 +443,19 @@
 
     <!-- Session Storage Cache Scripts -->
     <script src="/js/cache.js"></script>
-    <script src="/js/cart-sync-manager.js"></script>
+    <!-- Cart sync manager disabled on cart page to prevent item restoration -->
+    <!-- <script src="/js/cart-sync-manager.js"></script> -->
     <script src="/js/cart-manager.js"></script>
     <script src="/js/session-manager.js"></script>
     
     <!-- Local Storage Cache Scripts -->
     <script src="/js/local-cache.js"></script>
-    <script src="/js/persistent-cart.js"></script>
+    <!-- Persistent cart disabled on cart page -->
+    <!-- <script src="/js/persistent-cart.js"></script> -->
     <script src="/js/persistent-preferences.js"></script>
     
-    <!-- Cache Integration -->
-    <script src="/js/cache-integration.js"></script>
+    <!-- Cache Integration disabled on cart page to prevent item restoration -->
+    <!-- <script src="/js/cache-integration.js"></script> -->
     
     <script>
         // Define cart functions IMMEDIATELY and make them globally accessible
@@ -576,9 +713,18 @@
         // Apply persistent theme
         window.persistentPreferences.applyTheme();
         
-        // Initialize dual cache system
-        if (typeof initializeCacheSystems === 'function') {
-            initializeCacheSystems();
+        // Disable cache sync on cart page to prevent deleted items from reappearing
+        console.log('⚠️ Cart sync disabled on cart page to prevent item restoration');
+        
+        // Clear any cached cart data that might restore deleted items
+        try {
+            if (window.location.pathname === '/user/cart') {
+                localStorage.removeItem('localBuy_cart');
+                sessionStorage.removeItem('cart_data');
+                console.log('🗑️ Cleared cart cache to prevent item restoration');
+            }
+        } catch(e) {
+            console.log('Cache clear error:', e);
         }
         
         console.log('✅ Cart Page: Functions defined and Cache System Ready');
