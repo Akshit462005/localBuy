@@ -5839,17 +5839,7 @@ footer {
     font-weight: 500;
 }
 
-.stock-badge.available {
-    background: #d4edda;
-    color: #155724;
-}
-
 .stock-badge.limited {
     background: #fff3cd;
     color: #856404;
-}
-
-.stock-badge.unavailable {
-    background: #f8d7da;
-    color: #721c24;
 }
