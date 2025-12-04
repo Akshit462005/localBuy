@@ -958,7 +958,7 @@ router.get('/admin/export/:type', auth, isShopkeeper, async (req, res) => {
         switch (type) {
             case 'users':
                 const usersResult = await pool.query(`
-                    SELECT id, name, email, created_at, is_banned,
+                    SELECT id, username as name, email, created_at, is_banned,
                            (SELECT COUNT(*) FROM orders WHERE user_id = users.id) as order_count
                     FROM users WHERE role = 'user' ORDER BY created_at DESC
                 `);

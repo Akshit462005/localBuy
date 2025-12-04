@@ -8,6 +8,10 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'shopkeeper')),
+    is_banned BOOLEAN DEFAULT false,
+    banned_at TIMESTAMP NULL,
+    banned_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    ban_reason TEXT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
