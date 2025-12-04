@@ -38,7 +38,12 @@ router.post('/add-to-cart', auth, isUser, async (req, res) => {
             console.log('📝 Initialized new cart for session:', req.sessionID);
         }
         
-        const result = await pool.query('SELECT * FROM products WHERE id = $1', [productId]);
+        const result = await pool.query(`
+            SELECT p.*, u.username as shopkeeper_name 
+            FROM products p 
+            LEFT JOIN users u ON p.user_id = u.id 
+            WHERE p.id = $1
+        `, [productId]);
         const product = result.rows[0];
         
         if (!product) {
@@ -59,17 +64,29 @@ router.post('/add-to-cart', auth, isUser, async (req, res) => {
         const cartItem = req.session.cart.find(item => item.id === product.id);
         if (cartItem) {
             cartItem.quantity += 1;
-            console.log('📈 Updated existing cart item quantity:', cartItem.quantity);
+            // Ensure existing item has complete info
+            if (!cartItem.image_url) cartItem.image_url = product.image_url;
+            if (!cartItem.description) cartItem.description = product.description;
+            if (!cartItem.shopkeeper_name) {
+                const shopkeeperResult = await pool.query('SELECT username FROM users WHERE id = $1', [product.user_id]);
+                cartItem.shopkeeper_name = shopkeeperResult.rows[0]?.username || 'Unknown Seller';
+            }
+            console.log('📈 Updated existing cart item with complete info:', cartItem.quantity);
         } else {
+            // Get shopkeeper information
+            const shopkeeperResult = await pool.query('SELECT username FROM users WHERE id = $1', [product.user_id]);
+            const shopkeeperName = shopkeeperResult.rows[0]?.username || 'Unknown Seller';
+            
             req.session.cart.push({
                 id: product.id,
                 name: product.name,
                 price: product.price,
                 quantity: 1,
                 image_url: product.image_url,
-                description: product.description
+                description: product.description,
+                shopkeeper_name: shopkeeperName
             });
-            console.log('➕ Added new item to cart');
+            console.log('➕ Added new item to cart with complete info');
         }
         
         console.log('🛒 Current cart contents:', req.session.cart);
@@ -146,13 +163,54 @@ router.get('/cart', auth, isUser, async (req, res) => {
         
         let cart = req.session.cart || [];
         
-        // If session cart is empty, try database fallback
+        // Enrich cart items with complete product data if missing
+        if (cart.length > 0) {
+            console.log('🔍 Enriching session cart with product data...');
+            const enrichedCart = [];
+            
+            for (const item of cart) {
+                // Check if item has complete data (image_url and description)
+                if (!item.image_url || !item.description) {
+                    console.log(`📝 Enriching item ${item.id} with missing data`);
+                    const productResult = await pool.query(
+                        'SELECT id, name, price, image_url, description FROM products WHERE id = $1',
+                        [item.id]
+                    );
+                    
+                    if (productResult.rows.length > 0) {
+                        const product = productResult.rows[0];
+                        enrichedCart.push({
+                            id: product.id,
+                            name: product.name,
+                            price: product.price,
+                            quantity: item.quantity,
+                            image_url: product.image_url,
+                            description: product.description
+                        });
+                    } else {
+                        // Product doesn't exist anymore, skip it
+                        console.warn(`⚠️ Product ${item.id} not found, removing from cart`);
+                    }
+                } else {
+                    // Item has complete data, keep as is
+                    enrichedCart.push(item);
+                }
+            }
+            
+            cart = enrichedCart;
+            // Update session with enriched data
+            req.session.cart = cart;
+        }
+        
+        // If session cart is still empty, try database fallback
         if (cart.length === 0) {
             console.log('⚠️ Session cart empty, checking database');
             const dbCartResult = await pool.query(`
-                SELECT c.quantity, p.id, p.name, p.price, p.image_url, p.description 
+                SELECT c.quantity, p.id, p.name, p.price, p.image_url, p.description,
+                       u.username as shopkeeper_name
                 FROM cart c 
                 JOIN products p ON c.product_id = p.id 
+                LEFT JOIN users u ON p.user_id = u.id
                 WHERE c.user_id = $1
             `, [req.user.id]);
             
@@ -162,7 +220,8 @@ router.get('/cart', auth, isUser, async (req, res) => {
                 price: row.price,
                 quantity: row.quantity,
                 image_url: row.image_url,
-                description: row.description
+                description: row.description,
+                shopkeeper_name: row.shopkeeper_name
             }));
             
             // Restore to session if we found items in database
@@ -867,19 +926,20 @@ router.get('/api/cart', auth, isUser, async (req, res) => {
         let dbCart = [];
         try {
             const dbResult = await pool.query(`
-                SELECT c.*, p.name, p.price, p.image_url, u.username as shopkeeper_name
+                SELECT c.quantity, c.product_id, p.id, p.name, p.price, p.image_url, p.description, u.username as shopkeeper_name
                 FROM cart c 
                 JOIN products p ON c.product_id = p.id 
-                JOIN users u ON p.shopkeeper_id = u.id
+                LEFT JOIN users u ON p.user_id = u.id
                 WHERE c.user_id = $1
             `, [req.user.id]);
             
             dbCart = dbResult.rows.map(row => ({
-                id: row.product_id,
+                id: row.id,
                 name: row.name,
                 price: parseFloat(row.price),
                 quantity: row.quantity,
-                image: row.image_url,
+                image_url: row.image_url,
+                description: row.description,
                 shopkeeper_name: row.shopkeeper_name
             }));
         } catch (dbErr) {
