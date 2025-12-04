@@ -35,7 +35,7 @@
         <div class="cart-header">
             <h1><i class="fas fa-shopping-cart"></i> Your Shopping Cart</h1>
             <div class="cart-actions">
-                <button id="clearCart" class="btn secondary" <% if (cart.length === 0) { %>style="display: none;"<% } %>>
+                <button id="clearCart" class="btn secondary" onclick="clearCart()" <% if (cart.length === 0) { %>style="display: none;"<% } %>>
                     <i class="fas fa-trash"></i> Clear Cart
                 </button>
                 <a href="/user/dashboard" class="btn outline">
@@ -304,21 +304,40 @@
         };
 
         document.addEventListener('DOMContentLoaded', function() {
-            initializeCart();
-            setupEventListeners();
-            syncWithCache();
+            console.log('🚀 Initializing cart page...');
             
-            // Set user data if available
-            <% if (user) { %>
-            window.userSessionManager.saveUserSession({
-                id: '<%= user.id %>',
-                username: '<%= user.name %>',
-                email: '<%= user.email %>',
-                role: '<%= user.role %>'
-            });
-            <% } %>
-            
-            console.log('✅ Cart with caching initialized');
+            try {
+                initializeCart();
+                console.log('✅ Cart data initialized');
+                
+                setupEventListeners();
+                console.log('✅ Event listeners attached');
+                
+                syncWithCache();
+                console.log('✅ Cache synchronized');
+                
+                // Set user data if available
+                <% if (user) { %>
+                if (window.userSessionManager) {
+                    window.userSessionManager.saveUserSession({
+                        id: '<%= user.id %>',
+                        username: '<%= user.name %>',
+                        email: '<%= user.email %>',
+                        role: '<%= user.role %>'
+                    });
+                    console.log('✅ User session saved');
+                }
+                <% } %>
+                
+                // Validate cart state
+                updateCartTotals();
+                console.log('✅ Cart totals updated');
+                
+                console.log('🎉 Cart page fully initialized');
+            } catch (error) {
+                console.error('❌ Cart initialization error:', error);
+                showToast('Cart initialization error: ' + error.message, 'error');
+            }
         });
 
         function initializeCart() {
@@ -358,6 +377,8 @@
         }
 
         function setupEventListeners() {
+            console.log('🔧 Setting up cart event listeners');
+            
             // Prevent form submission on enter in quantity inputs
             document.querySelectorAll('input[type="number"]').forEach(input => {
                 input.addEventListener('keypress', function(e) {
@@ -371,14 +392,44 @@
             // Clear cart button
             const clearCartBtn = document.getElementById('clearCart');
             if (clearCartBtn) {
-                clearCartBtn.addEventListener('click', clearCart);
+                console.log('✅ Clear cart button found, attaching event');
+                // Remove any existing listeners first
+                clearCartBtn.replaceWith(clearCartBtn.cloneNode(true));
+                const newClearCartBtn = document.getElementById('clearCart');
+                newClearCartBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    clearCart();
+                });
+            } else {
+                console.warn('⚠️ Clear cart button not found');
             }
             
             // Remove selected button
             const removeSelectedBtn = document.getElementById('removeSelected');
             if (removeSelectedBtn) {
-                removeSelectedBtn.addEventListener('click', removeSelected);
+                console.log('✅ Remove selected button found, attaching event');
+                removeSelectedBtn.replaceWith(removeSelectedBtn.cloneNode(true));
+                const newRemoveSelectedBtn = document.getElementById('removeSelected');
+                newRemoveSelectedBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    removeSelected();
+                });
+            } else {
+                console.warn('⚠️ Remove selected button not found');
             }
+            
+            // Attach remove item button events
+            document.querySelectorAll('.action-btn.remove').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const itemId = this.closest('[data-item-id]').getAttribute('data-item-id');
+                    if (itemId) {
+                        removeItem(itemId);
+                    }
+                });
+            });
+            
+            console.log('✅ All cart event listeners attached');
         }
 
         function updateQuantity(itemId, action, value) {
@@ -444,19 +495,32 @@
         function removeItem(itemId) {
             if (confirm('Are you sure you want to remove this item from your cart?')) {
                 const cartItem = document.querySelector(`[data-item-id="${itemId}"]`);
+                if (!cartItem) {
+                    showToast('Item not found', 'error');
+                    return;
+                }
+                
                 const removeButton = cartItem.querySelector('.action-btn.remove');
+                if (!removeButton) {
+                    showToast('Remove button not found', 'error');
+                    return;
+                }
                 
                 // Show loading state
                 cartItem.style.opacity = '0.5';
                 removeButton.disabled = true;
                 removeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
                 
+                console.log('🗑️ Attempting to remove item:', itemId);
+                
                 // Send delete request to server
                 fetch(`/user/remove-from-cart/${itemId}`, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
-                    }
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
                 })
                 .then(response => {
                     if (!response.ok) {
@@ -557,19 +621,54 @@
         }
 
         function clearCart() {
+            const cartItems = document.querySelectorAll('.enhanced-cart-item');
+            if (cartItems.length === 0) {
+                showToast('Cart is already empty', 'info');
+                return;
+            }
+            
             if (confirm('Are you sure you want to clear your entire cart? This action cannot be undone.')) {
                 const clearButton = document.getElementById('clearCart');
+                if (!clearButton) {
+                    showToast('Clear button not found', 'error');
+                    return;
+                }
+                
                 clearButton.disabled = true;
                 clearButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Clearing...';
                 
-                // Get all item IDs
-                const itemIds = Array.from(document.querySelectorAll('.enhanced-cart-item'))
-                    .map(item => item.getAttribute('data-item-id'));
+                console.log('🧹 Clearing cart with items:', cartItems.length);
                 
-                // Remove all items
+                // Get all item IDs
+                const itemIds = Array.from(cartItems)
+                    .map(item => item.getAttribute('data-item-id'))
+                    .filter(id => id); // Remove any null/undefined IDs
+                
+                if (itemIds.length === 0) {
+                    showToast('No valid items to remove', 'warning');
+                    clearButton.disabled = false;
+                    clearButton.innerHTML = '<i class="fas fa-trash"></i> Clear Cart';
+                    return;
+                }
+                
+                console.log('🗑️ Removing items:', itemIds);
+                
+                // Remove all items with better error handling
                 Promise.all(itemIds.map(itemId => 
-                    fetch(`/user/remove-from-cart/${itemId}`, { method: 'DELETE' })
-                        .then(response => response.json())
+                    fetch(`/user/remove-from-cart/${itemId}`, { 
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin'
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
                 ))
                 .then(responses => {
                     showToast('Cart cleared successfully', 'success');
