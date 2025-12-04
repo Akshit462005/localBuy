@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cart Delete Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .code {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            overflow-x: auto;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .delete-btn {
+            background: #dc3545;
+        }
+        .delete-btn:hover {
+            background: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <h1>🛒 Cart Delete Functionality Test</h1>
+
+    <div class="test-section success">
+        <h2>✅ Cart Delete Button Fix Applied</h2>
+        <p>The following fixes have been implemented:</p>
+        <ol>
+            <li><strong>Backend Route Added:</strong> <code>DELETE /user/remove-from-cart/:productId</code></li>
+            <li><strong>API Route Fixed:</strong> <code>DELETE /api/cart/remove/:productId</code></li>
+            <li><strong>Frontend JavaScript Updated:</strong> Proper error handling and UI feedback</li>
+            <li><strong>Additional Features:</strong> Clear Cart and Remove Selected functionality</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>🧪 Test Steps</h2>
+        <p>To test the cart delete functionality:</p>
+        <ol>
+            <li>Navigate to <a href="http://localhost:3000" target="_blank">http://localhost:3000</a></li>
+            <li>Register/Login as a user</li>
+            <li>Go to the user dashboard and add some products to cart</li>
+            <li>Navigate to the cart page</li>
+            <li>Try the following delete operations:</li>
+            <ul>
+                <li>Click the <button class="delete-btn">🗑️</button> button on individual items</li>
+                <li>Select multiple items and click "Remove Selected"</li>
+                <li>Click "Clear Cart" to remove all items</li>
+            </ul>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>🆕 Latest Fix: Add to Cart Button</h2>
+        <p><strong>Issue:</strong> Add to cart button was getting stuck on "Adding..." and no success popup was showing.</p>
+        <p><strong>Root Cause:</strong> Backend wasn't properly detecting JSON format requests, so frontend wasn't receiving expected JSON response.</p>
+        
+        <h3>✅ Fixed Issues:</h3>
+        <ul>
+            <li>✅ Button no longer gets stuck in "Adding..." state</li>
+            <li>✅ Success toast popup now shows correctly</li>
+            <li>✅ Cart counter updates properly</li>
+            <li>✅ Button shows "Added!" animation and resets after 2 seconds</li>
+            <li>✅ Better error handling and logging</li>
+        </ul>
+        
+        <h3>🔧 Backend Fix (user.js):</h3>
+        <div class="code">
+// Enhanced JSON format detection
+if (req.headers['accept']?.includes('application/json') || 
+    req.headers['content-type']?.includes('application/json') || 
+    req.query.format === 'json') {
+    
+    console.log('📡 Sending JSON response:', { count, total, itemsCount: cart.length });
+    
+    return res.json({
+        success: true,
+        message: 'Product added to cart',
+        cart: { items: cart, total: total, count: count }
+    });
+}
+        </div>
+        
+        <h3>🔧 Frontend Fix (dashboard.ejs):</h3>
+        <div class="code">
+// Enhanced request with proper Accept header
+fetch('/user/add-to-cart?format=json', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'  // Added this crucial header
+    },
+    body: `productId=${productId}`
+})
+.then(response => {
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Failed to add to cart`);
+    }
+    return response.json();
+})
+.then(data => {
+    if (data.success) {
+        // Update cart count and show success animation
+        const cartCount = data.cart.count || 0;
+        updateCartDisplay(cartCount);
+        showToast(data.message || 'Product added to cart!', 'success');
+        
+        // Success animation
+        buttonEl.innerHTML = '<i class="fas fa-check"></i> Added!';
+        buttonEl.classList.add('success');
+        
+        // Reset after 2 seconds
+        setTimeout(() => {
+            buttonEl.innerHTML = originalText;
+            buttonEl.classList.remove('success');
+            buttonEl.disabled = false;
+        }, 2000);
+    }
+})
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 Technical Implementation</h2>
+        
+        <h3>Backend Changes:</h3>
+        <div class="code">
+// New DELETE endpoint in /src/routes/user.js
+router.delete('/remove-from-cart/:productId', auth, isUser, async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const cart = req.session.cart || [];
+        
+        // Remove from session cart
+        req.session.cart = cart.filter(item => item.id !== parseInt(productId));
+        
+        // Remove from database
+        await pool.query('DELETE FROM cart WHERE user_id = $1 AND product_id = $2', 
+            [req.user.id, parseInt(productId)]);
+        
+        // Return updated cart data
+        const newCart = req.session.cart || [];
+        const total = newCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const count = newCart.reduce((sum, item) => sum + item.quantity, 0);
+        
+        res.json({
+            success: true,
+            message: 'Item removed from cart',
+            cart: { items: newCart, total: total, count: count }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: 'Failed to remove item from cart' });
+    }
+});
+        </div>
+
+        <h3>Frontend Changes:</h3>
+        <div class="code">
+function removeItem(itemId) {
+    if (confirm('Are you sure you want to remove this item from your cart?')) {
+        const cartItem = document.querySelector(`[data-item-id="${itemId}"]`);
+        
+        // Show loading state
+        cartItem.style.opacity = '0.5';
+        
+        // Send DELETE request
+        fetch(`/user/remove-from-cart/${itemId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove with animation
+                cartItem.style.transition = 'all 0.3s ease';
+                cartItem.style.transform = 'translateX(-100%)';
+                cartItem.style.opacity = '0';
+                
+                setTimeout(() => {
+                    cartItem.remove();
+                    updateCartTotals();
+                    showToast('Item removed from cart', 'success');
+                }, 300);
+            }
+        })
+        .catch(error => {
+            cartItem.style.opacity = '1';
+            showToast('Failed to remove item: ' + error.message, 'error');
+        });
+    }
+}
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 Expected Results</h2>
+        <ul>
+            <li>✅ Individual delete buttons should work instantly</li>
+            <li>✅ Items should be removed with smooth animation</li>
+            <li>✅ Cart totals should update automatically</li>
+            <li>✅ Success/error messages should appear</li>
+            <li>✅ Cart should persist changes in database</li>
+            <li>✅ Empty cart state should show correctly</li>
+            <li>✅ Bulk operations (Clear Cart, Remove Selected) should work</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🚀 Start Testing</h2>
+        <p>Click the button below to open the application and test the cart functionality:</p>
+        <button onclick="window.open('http://localhost:3000', '_blank')" style="font-size: 16px; padding: 15px 25px;">
+            🚀 Open LocalBuy Application
+        </button>
+    </div>
+
+    <script>
+        // Simple test to verify the application is running
+        fetch('http://localhost:3000')
+            .then(response => {
+                if (response.ok) {
+                    document.body.style.border = '3px solid #28a745';
+                    console.log('✅ Application is running on http://localhost:3000');
+                } else {
+                    document.body.style.border = '3px solid #dc3545';
+                    console.log('❌ Application not responding');
+                }
+            })
+            .catch(error => {
+                document.body.style.border = '3px solid #dc3545';
+                console.log('❌ Cannot connect to application:', error);
+            });
+    </script>
+</body>
+</html>

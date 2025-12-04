@@ -330,6 +330,18 @@
                     }
                 });
             });
+            
+            // Clear cart button
+            const clearCartBtn = document.getElementById('clearCart');
+            if (clearCartBtn) {
+                clearCartBtn.addEventListener('click', clearCart);
+            }
+            
+            // Remove selected button
+            const removeSelectedBtn = document.getElementById('removeSelected');
+            if (removeSelectedBtn) {
+                removeSelectedBtn.addEventListener('click', removeSelected);
+            }
         }
 
         function updateQuantity(itemId, action, value) {
@@ -395,30 +407,69 @@
         function removeItem(itemId) {
             if (confirm('Are you sure you want to remove this item from your cart?')) {
                 const cartItem = document.querySelector(`[data-item-id="${itemId}"]`);
-                cartItem.style.opacity = '0.5';
+                const removeButton = cartItem.querySelector('.action-btn.remove');
                 
-                // Send request to server (would need to implement this endpoint)
+                // Show loading state
+                cartItem.style.opacity = '0.5';
+                removeButton.disabled = true;
+                removeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                
+                // Send delete request to server
                 fetch(`/user/remove-from-cart/${itemId}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
                 })
                 .then(response => {
-                    if (response.ok) {
-                        cartItem.remove();
-                        updateCartTotals();
-                        showToast('Item removed from cart', 'success');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Remove item from DOM with animation
+                        cartItem.style.transition = 'all 0.3s ease';
+                        cartItem.style.transform = 'translateX(-100%)';
+                        cartItem.style.opacity = '0';
                         
-                        // Check if cart is now empty
-                        if (document.querySelectorAll('.enhanced-cart-item').length === 0) {
-                            location.reload();
-                        }
+                        setTimeout(() => {
+                            cartItem.remove();
+                            updateCartTotals();
+                            
+                            // Update cache with new cart data
+                            if (window.cache && data.cart) {
+                                window.cache.set('server_cart', data.cart, 60);
+                            }
+                            
+                            // Update cart manager
+                            if (window.cartManager) {
+                                window.cartManager.removeItem(itemId);
+                            }
+                            
+                            showToast('Item removed from cart', 'success');
+                            
+                            // Check if cart is now empty
+                            if (document.querySelectorAll('.enhanced-cart-item').length === 0) {
+                                setTimeout(() => {
+                                    location.reload();
+                                }, 1000);
+                            }
+                        }, 300);
                     } else {
-                        throw new Error('Failed to remove item');
+                        throw new Error(data.error || 'Failed to remove item');
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
+                    console.error('Remove item error:', error);
+                    
+                    // Reset loading state
                     cartItem.style.opacity = '1';
-                    showToast('Failed to remove item', 'error');
+                    removeButton.disabled = false;
+                    removeButton.innerHTML = '<i class="fas fa-trash"></i>';
+                    
+                    showToast('Failed to remove item: ' + error.message, 'error');
                 });
             }
         }
@@ -465,6 +516,91 @@
                 removeButton.textContent = `Remove Selected (${selectedCount})`;
             } else {
                 removeButton.style.display = 'none';
+            }
+        }
+
+        function clearCart() {
+            if (confirm('Are you sure you want to clear your entire cart? This action cannot be undone.')) {
+                const clearButton = document.getElementById('clearCart');
+                clearButton.disabled = true;
+                clearButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Clearing...';
+                
+                // Get all item IDs
+                const itemIds = Array.from(document.querySelectorAll('.enhanced-cart-item'))
+                    .map(item => item.getAttribute('data-item-id'));
+                
+                // Remove all items
+                Promise.all(itemIds.map(itemId => 
+                    fetch(`/user/remove-from-cart/${itemId}`, { method: 'DELETE' })
+                        .then(response => response.json())
+                ))
+                .then(responses => {
+                    showToast('Cart cleared successfully', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                })
+                .catch(error => {
+                    console.error('Clear cart error:', error);
+                    clearButton.disabled = false;
+                    clearButton.innerHTML = '<i class="fas fa-trash"></i> Clear Cart';
+                    showToast('Failed to clear cart', 'error');
+                });
+            }
+        }
+
+        function removeSelected() {
+            const selectedCheckboxes = Array.from(document.querySelectorAll('.item-checkbox:checked'));
+            
+            if (selectedCheckboxes.length === 0) {
+                showToast('No items selected', 'warning');
+                return;
+            }
+            
+            if (confirm(`Are you sure you want to remove ${selectedCheckboxes.length} selected item(s)?`)) {
+                const removeButton = document.getElementById('removeSelected');
+                removeButton.disabled = true;
+                removeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
+                
+                const itemIds = selectedCheckboxes.map(checkbox => {
+                    const cartItem = checkbox.closest('.enhanced-cart-item');
+                    return cartItem.getAttribute('data-item-id');
+                });
+                
+                Promise.all(itemIds.map(itemId => 
+                    fetch(`/user/remove-from-cart/${itemId}`, { method: 'DELETE' })
+                        .then(response => response.json())
+                ))
+                .then(responses => {
+                    showToast(`${itemIds.length} item(s) removed successfully`, 'success');
+                    
+                    // Remove items from DOM
+                    itemIds.forEach(itemId => {
+                        const cartItem = document.querySelector(`[data-item-id="${itemId}"]`);
+                        if (cartItem) {
+                            cartItem.style.transition = 'all 0.3s ease';
+                            cartItem.style.transform = 'translateX(-100%)';
+                            cartItem.style.opacity = '0';
+                            setTimeout(() => cartItem.remove(), 300);
+                        }
+                    });
+                    
+                    setTimeout(() => {
+                        updateCartTotals();
+                        updateSelection();
+                        
+                        // Check if cart is now empty
+                        if (document.querySelectorAll('.enhanced-cart-item').length === itemIds.length) {
+                            setTimeout(() => location.reload(), 1000);
+                        }
+                    }, 300);
+                })
+                .catch(error => {
+                    console.error('Remove selected error:', error);
+                    removeButton.disabled = false;
+                    removeButton.innerHTML = '<i class="fas fa-trash"></i> Remove Selected';
+                    showToast('Failed to remove selected items', 'error');
+                });
             }
         }
 
