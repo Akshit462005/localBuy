@@ -74,13 +74,13 @@ router.get('/dashboard', auth, isShopkeeper, async (req, res) => {
 
         // Get recent activities for dashboard
         const recentActivities = await pool.query(`
-            (SELECT 'order' as type, o.id, u.name as user_name, o.total_amount as amount, o.created_at, o.status
+            (SELECT 'order' as type, o.id, u.username as user_name, o.total_amount as amount, o.created_at, o.status
              FROM orders o 
              JOIN users u ON o.user_id = u.id 
              ORDER BY o.created_at DESC 
              LIMIT 5)
             UNION ALL
-            (SELECT 'user' as type, u.id, u.name as user_name, 0 as amount, u.created_at, 'registered' as status
+            (SELECT 'user' as type, u.id, u.username as user_name, 0 as amount, u.created_at, 'registered' as status
              FROM users u 
              WHERE u.role = 'user' 
              ORDER BY u.created_at DESC 
@@ -466,7 +466,7 @@ router.get('/admin/users/:id', auth, isShopkeeper, async (req, res) => {
         const userId = parseInt(req.params.id);
         
         const userResult = await pool.query(`
-            SELECT u.id, u.name, u.email, u.created_at, u.is_banned, u.banned_at, u.ban_reason,
+            SELECT u.id, u.username as name, u.email, u.created_at, u.is_banned, u.banned_at, u.ban_reason,
                    COUNT(DISTINCT o.id) as order_count,
                    COALESCE(SUM(o.total_amount), 0) as total_spent,
                    COUNT(DISTINCT r.id) as review_count
@@ -474,7 +474,7 @@ router.get('/admin/users/:id', auth, isShopkeeper, async (req, res) => {
             LEFT JOIN orders o ON u.id = o.user_id AND o.status != 'cancelled'
             LEFT JOIN reviews r ON u.id = r.user_id
             WHERE u.id = $1 AND u.role = 'user'
-            GROUP BY u.id, u.name, u.email, u.created_at, u.is_banned, u.banned_at, u.ban_reason
+            GROUP BY u.id, u.username, u.email, u.created_at, u.is_banned, u.banned_at, u.ban_reason
         `, [userId]);
 
         if (userResult.rows.length === 0) {
@@ -599,7 +599,7 @@ router.get('/admin/products', auth, isShopkeeper, async (req, res) => {
 
         const productsResult = await pool.query(`
             SELECT p.id, p.name, p.description, p.price, p.image_url, p.status, p.created_at,
-                   u.name as shopkeeper_name, u.email as shopkeeper_email,
+                   u.username as shopkeeper_name, u.email as shopkeeper_email,
                    (SELECT COUNT(*) FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE oi.product_id = p.id AND o.status != 'cancelled') as sales_count,
                    (SELECT AVG(rating) FROM reviews WHERE product_id = p.id) as avg_rating
             FROM products p
@@ -681,13 +681,13 @@ router.get('/admin/orders', auth, isShopkeeper, async (req, res) => {
 
         const ordersResult = await pool.query(`
             SELECT o.id, o.total_amount, o.status, o.created_at,
-                   u.name as user_name, u.email as user_email,
+                   u.username as user_name, u.email as user_email,
                    COUNT(oi.id) as item_count
             FROM orders o
             JOIN users u ON o.user_id = u.id
             LEFT JOIN order_items oi ON o.id = oi.order_id
             ${whereClause}
-            GROUP BY o.id, o.total_amount, o.status, o.created_at, u.name, u.email
+            GROUP BY o.id, o.total_amount, o.status, o.created_at, u.username, u.email
             ORDER BY o.created_at DESC
             LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
         `, [...params, limit, offset]);
@@ -718,7 +718,7 @@ router.get('/admin/orders/:id', auth, isShopkeeper, async (req, res) => {
         
         const orderResult = await pool.query(`
             SELECT o.id, o.total_amount, o.status, o.created_at,
-                   u.name as user_name, u.email as user_email,
+                   u.username as user_name, u.email as user_email,
                    COALESCE(
                        json_agg(
                            json_build_object(
@@ -736,7 +736,7 @@ router.get('/admin/orders/:id', auth, isShopkeeper, async (req, res) => {
             LEFT JOIN order_items oi ON o.id = oi.order_id
             LEFT JOIN products p ON oi.product_id = p.id
             WHERE o.id = $1
-            GROUP BY o.id, o.total_amount, o.status, o.created_at, u.name, u.email
+            GROUP BY o.id, o.total_amount, o.status, o.created_at, u.username, u.email
         `, [orderId]);
 
         if (orderResult.rows.length === 0) {
@@ -812,7 +812,7 @@ router.get('/admin/reviews', auth, isShopkeeper, async (req, res) => {
 
         const reviewsResult = await pool.query(`
             SELECT r.id, r.rating, r.comment, r.created_at,
-                   u.name as user_name, u.email as user_email,
+                   u.username as user_name, u.email as user_email,
                    p.name as product_name, p.id as product_id
             FROM reviews r
             JOIN users u ON r.user_id = u.id
@@ -976,7 +976,7 @@ router.get('/admin/export/:type', auth, isShopkeeper, async (req, res) => {
             case 'orders':
                 const ordersResult = await pool.query(`
                     SELECT o.id, o.total_amount, o.status, o.created_at,
-                           u.name as user_name, u.email as user_email
+                           u.username as user_name, u.email as user_email
                     FROM orders o
                     JOIN users u ON o.user_id = u.id
                     ORDER BY o.created_at DESC
@@ -988,7 +988,7 @@ router.get('/admin/export/:type', auth, isShopkeeper, async (req, res) => {
             case 'products':
                 const productsResult = await pool.query(`
                     SELECT p.id, p.name, p.description, p.price, p.status, p.created_at,
-                           u.name as shopkeeper_name
+                           u.username as shopkeeper_name
                     FROM products p
                     JOIN users u ON p.shopkeeper_id = u.id
                     ORDER BY p.created_at DESC
