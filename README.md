@@ -10,6 +10,7 @@
 [![HTTPS](https://img.shields.io/badge/HTTPS-SSL%2FTLS-green?style=flat&logo=lock)](https://nodejs.org/)
 
 ## 🚀 Live Demo & Access
+**Deployed**: https://local-buy-seven.vercel.app/
 **HTTP**: http://localhost:3000  
 **HTTPS**: https://localhost:3443 (SSL/TLS enabled)  
 **Repository**: [LocalBuy Platform](https://github.com/daman04/localBuy)
