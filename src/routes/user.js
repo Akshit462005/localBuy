@@ -1272,7 +1272,7 @@ router.post('/api/notify-when-available', auth, isUser, async (req, res) => {
     try {
         const { productId } = req.body;
         const userId = req.user.id;
-        const userEmail = req.user.email;
+        let userEmail = req.user?.email;
         
         console.log(`🔔 Stock notification subscription request - User: ${userId}, Product: ${productId}`);
         
@@ -1284,6 +1284,19 @@ router.post('/api/notify-when-available', auth, isUser, async (req, res) => {
             });
         }
         
+        // Ensure we have user email (fallback to DB if missing in session)
+        if (!userEmail) {
+            const userResult = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
+            userEmail = userResult.rows[0]?.email;
+        }
+
+        if (!userEmail) {
+            return res.status(400).json({
+                success: false,
+                error: 'User email not found'
+            });
+        }
+
         // Check if product exists
         const productResult = await pool.query(
             'SELECT id, name, stock_quantity, shopkeeper_id FROM products WHERE id = $1',
