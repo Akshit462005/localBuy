@@ -1,0 +1,277 @@
+<html>
+<!-- Stock Notification Button Examples -->
+<!-- Use these HTML snippets in your product display templates -->
+
+<!-- Example 1: Basic Button (EJS) -->
+<% if (product.stock_quantity === 0) { %>
+    <button class="btn secondary notify-btn" 
+            onclick="notifyWhenAvailable(<%= product.id %>)"
+            data-product-id="<%= product.id %>">
+        <i class="fas fa-bell"></i>
+        Notify Me When Available
+    </button>
+<% } else { %>
+    <button class="btn primary" onclick="addToCart(<%= product.id %>)">
+        <i class="fas fa-shopping-cart"></i>
+        Add to Cart
+    </button>
+<% } %>
+
+<!-- Example 2: With Loading State -->
+<button class="btn secondary notify-btn" 
+        id="notify-btn-<%= product.id %>"
+        onclick="notifyWhenAvailable(<%= product.id %>)"
+        data-product-id="<%= product.id %>"
+        style="position: relative;">
+    <span id="notify-text-<%= product.id %>">
+        <i class="fas fa-bell"></i>
+        Notify Me
+    </span>
+    <span id="notify-spinner-<%= product.id %>" style="display: none;">
+        <i class="fas fa-spinner fa-spin"></i>
+        Loading...
+    </span>
+</button>
+
+<!-- Example 3: With Stock Status -->
+<div class="product-status">
+    <% if (product.stock_quantity === 0) { %>
+        <span class="badge badge-danger">Out of Stock</span>
+        <button class="btn secondary notify-btn" 
+                onclick="notifyWhenAvailable(<%= product.id %>)"
+                data-product-id="<%= product.id %>">
+            <i class="fas fa-bell"></i>
+            Notify When Available
+        </button>
+    <% } else if (product.stock_quantity < 5) { %>
+        <span class="badge badge-warning">Low Stock (<%= product.stock_quantity %>)</span>
+        <button class="btn primary" onclick="addToCart(<%= product.id %>)">
+            <i class="fas fa-shopping-cart"></i>
+            Add to Cart
+        </button>
+    <% } else { %>
+        <span class="badge badge-success">In Stock</span>
+        <button class="btn primary" onclick="addToCart(<%= product.id %>)">
+            <i class="fas fa-shopping-cart"></i>
+            Add to Cart
+        </button>
+    <% } %>
+</div>
+
+<!-- Example 4: With Subscription Status Check -->
+<button class="btn secondary notify-btn" 
+        id="notify-btn-<%= product.id %>"
+        onclick="notifyWhenAvailable(<%= product.id %>)"
+        data-product-id="<%= product.id %>"
+        style="transition: all 0.3s ease;">
+    <i class="fas fa-bell" id="notify-icon-<%= product.id %>"></i>
+    <span id="notify-text-<%= product.id %>">Notify Me When Available</span>
+</button>
+
+<!-- Enhanced JavaScript for Example 4 -->
+<script>
+// Check if product is already subscribed on load
+function initNotificationButton(productId) {
+    const notifications = JSON.parse(localStorage.getItem('stockNotifications') || '[]');
+    const button = document.getElementById(`notify-btn-${productId}`);
+    
+    if (button && notifications.includes(productId)) {
+        button.disabled = true;
+        button.style.opacity = '0.6';
+        document.getElementById(`notify-text-${productId}`).textContent = '✓ Notifications Enabled';
+    }
+}
+
+// Call on page load for all products
+document.addEventListener('DOMContentLoaded', function() {
+    const productCards = document.querySelectorAll('[data-product-id]');
+    productCards.forEach(card => {
+        const productId = card.getAttribute('data-product-id');
+        initNotificationButton(productId);
+    });
+});
+</script>
+
+<!-- Example 5: Product Card in Dashboard -->
+<div class="product-card" data-product="<%= JSON.stringify(product) %>" data-product-id="<%= product.id %>">
+    <div class="product-image">
+        <img src="<%= product.image_url %>" alt="<%= product.name %>">
+        <% if (product.stock_quantity === 0) { %>
+            <div class="stock-badge">Out of Stock</div>
+        <% } %>
+    </div>
+    
+    <div class="product-info">
+        <h3><%= product.name %></h3>
+        <p class="price">₹<%= product.price %></p>
+        <p class="description"><%= product.description.substring(0, 100) %>...</p>
+        
+        <div class="product-actions">
+            <% if (product.stock_quantity === 0) { %>
+                <button class="btn secondary full-width notify-btn" 
+                        onclick="notifyWhenAvailable(<%= product.id %>)"
+                        data-product-id="<%= product.id %>">
+                    <i class="fas fa-bell"></i>
+                    Notify Me When Available
+                </button>
+            <% } else { %>
+                <button class="btn primary full-width" 
+                        onclick="addToCart(<%= product.id %>, this)">
+                    <i class="fas fa-shopping-cart"></i>
+                    Add to Cart
+                </button>
+            <% } %>
+            
+            <button class="btn secondary icon-btn" 
+                    onclick="toggleWishlist(<%= product.id %>, this)"
+                    title="Add to Wishlist">
+                <i class="far fa-heart"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- CSS Styling (Add to your style.css) -->
+<style>
+.notify-btn {
+    background-color: #f0ad4e;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.notify-btn:hover {
+    background-color: #ec971f;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.notify-btn:disabled {
+    background-color: #28a745;
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+.notify-btn i {
+    margin-right: 8px;
+}
+
+.product-status .badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.badge-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.badge-warning {
+    background-color: #ffc107;
+    color: black;
+}
+
+.badge-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.stock-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(220, 53, 69, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.product-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.product-actions .full-width {
+    flex: 1;
+}
+
+.product-actions .icon-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+</style>
+
+<!-- Integration with Toast Notifications -->
+<script>
+// Enhanced notifyWhenAvailable with visual feedback
+async function notifyWhenAvailable(productId) {
+    const button = document.querySelector(`[data-product-id="${productId}"] .notify-btn`);
+    
+    // Show loading state
+    if (button) {
+        const originalText = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Subscribing...';
+    }
+    
+    try {
+        const response = await fetch('/user/api/notify-when-available', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId: productId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update localStorage
+            let notifications = JSON.parse(localStorage.getItem('stockNotifications') || '[]');
+            if (!notifications.includes(productId)) {
+                notifications.push(productId);
+                localStorage.setItem('stockNotifications', JSON.stringify(notifications));
+            }
+            
+            // Update button
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-check"></i> Notifications Enabled';
+                button.style.opacity = '0.6';
+            }
+            
+            // Show success toast
+            showToast('✅ You\'ll be notified when this product is back in stock!', 'success');
+        } else {
+            // Show error toast
+            showToast(data.error || 'Failed to subscribe', 'error');
+            
+            // Restore button
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Network error. Please try again.', 'error');
+        
+        // Restore button
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    }
+}
+</script>
+</html>

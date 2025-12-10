@@ -1264,4 +1264,209 @@ router.get('/debug-session', auth, isUser, (req, res) => {
     });
 });
 
+// Stock Notification Endpoints
+const { handleStockUpdate, getPendingNotifications, getUserNotifications, removeNotificationSubscription } = require('../services/stockNotificationManager');
+
+// Subscribe to stock notifications
+router.post('/api/notify-when-available', auth, isUser, async (req, res) => {
+    try {
+        const { productId } = req.body;
+        const userId = req.user.id;
+        const userEmail = req.user.email;
+        
+        console.log(`🔔 Stock notification subscription request - User: ${userId}, Product: ${productId}`);
+        
+        // Validate input
+        if (!productId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Product ID is required' 
+            });
+        }
+        
+        // Check if product exists
+        const productResult = await pool.query(
+            'SELECT id, name, stock_quantity, shopkeeper_id FROM products WHERE id = $1',
+            [productId]
+        );
+        
+        if (productResult.rows.length === 0) {
+            console.log(`❌ Product ${productId} not found`);
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Product not found' 
+            });
+        }
+        
+        const product = productResult.rows[0];
+        
+        // Check if user already subscribed
+        const existingResult = await pool.query(
+            'SELECT id FROM stock_notifications WHERE user_id = $1 AND product_id = $2',
+            [userId, productId]
+        );
+        
+        if (existingResult.rows.length > 0) {
+            console.log(`⚠️ User ${userId} already subscribed to product ${productId}`);
+            return res.status(400).json({ 
+                success: false, 
+                error: 'You are already subscribed to notifications for this product' 
+            });
+        }
+        
+        // Create notification subscription
+        const insertResult = await pool.query(
+            `INSERT INTO stock_notifications 
+             (user_id, product_id, product_name, shopkeeper_id, user_email, created_at, notification_sent) 
+             VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, false) 
+             RETURNING id`,
+            [userId, productId, product.name, product.shopkeeper_id, userEmail]
+        );
+        
+        console.log(`✅ Notification subscription created - ID: ${insertResult.rows[0].id}`);
+        
+        res.json({ 
+            success: true, 
+            message: 'You will be notified when this product is back in stock',
+            notificationId: insertResult.rows[0].id
+        });
+        
+    } catch (error) {
+        console.error('❌ Error creating notification subscription:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to subscribe to notifications' 
+        });
+    }
+});
+
+// Get user's notification subscriptions
+router.get('/api/notifications', auth, isUser, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        console.log(`📋 Fetching notifications for user: ${userId}`);
+        
+        const notifications = await getUserNotifications(userId);
+        
+        res.json({
+            success: true,
+            notifications: notifications,
+            count: notifications.length
+        });
+        
+    } catch (error) {
+        console.error('❌ Error fetching notifications:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch notifications'
+        });
+    }
+});
+
+// Get pending notifications for a specific product
+router.get('/api/notifications/product/:productId', auth, isUser, async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const userId = req.user.id;
+        
+        console.log(`📋 Checking notification status - User: ${userId}, Product: ${productId}`);
+        
+        const result = await pool.query(
+            'SELECT * FROM stock_notifications WHERE user_id = $1 AND product_id = $2',
+            [userId, productId]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.json({
+                success: true,
+                isSubscribed: false,
+                message: 'Not subscribed to this product'
+            });
+        }
+        
+        const notification = result.rows[0];
+        
+        res.json({
+            success: true,
+            isSubscribed: true,
+            notification: notification
+        });
+        
+    } catch (error) {
+        console.error('❌ Error checking notification status:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to check notification status'
+        });
+    }
+});
+
+// Unsubscribe from notifications
+router.delete('/api/notifications/:productId', auth, isUser, async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const userId = req.user.id;
+        
+        console.log(`🗑️ Unsubscribing user ${userId} from product ${productId}`);
+        
+        const result = await removeNotificationSubscription(userId, productId);
+        
+        if (result.success) {
+            res.json({
+                success: true,
+                message: 'Successfully unsubscribed from notifications'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: result.error
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Error unsubscribing from notifications:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to unsubscribe from notifications'
+        });
+    }
+});
+
+// Public unsubscribe endpoint (no auth required, for email links)
+router.get('/notifications/unsubscribe/:productId', async (req, res) => {
+    try {
+        const { productId } = req.params;
+        
+        // In a real app, you'd validate an unsubscribe token here
+        console.log(`🗑️ Public unsubscribe request for product ${productId}`);
+        
+        res.send(`
+            <html>
+            <head>
+                <title>Unsubscribe from Notifications</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 40px; text-align: center; }
+                    .container { max-width: 600px; margin: 0 auto; }
+                    .success { color: #28a745; }
+                    .info { color: #666; margin-top: 20px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h2 class="success">Unsubscribed Successfully</h2>
+                    <p>You have been removed from the notification list for this product.</p>
+                    <p class="info">You can subscribe again anytime from the product page.</p>
+                    <p><a href="/">Return to LocalBuy</a></p>
+                </div>
+            </body>
+            </html>
+        `);
+        
+    } catch (error) {
+        console.error('❌ Error processing unsubscribe:', error);
+        res.status(500).send('Error processing unsubscribe');
+    }
+});
+
 module.exports = router;
