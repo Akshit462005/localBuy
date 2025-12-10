@@ -91,8 +91,9 @@ app.use(express.urlencoded({ extended: true }));
 const cookieParser = require('cookie-parser');
 app.use(cookieParser());
 
-// 3. CORRECT STATIC PATH FOR VERCEL
-app.use(express.static(path.join(process.cwd(), 'public')));
+// 3. CORRECT STATIC PATH FOR VERCEL (use __dirname to avoid cwd issues on serverless)
+const publicDir = path.join(__dirname, '..', 'public');
+app.use(express.static(publicDir));
 
 // Session configuration
 const sessionConfig = {
